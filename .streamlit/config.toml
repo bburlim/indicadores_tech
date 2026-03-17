@@ -1,0 +1,13 @@
+[server]
+maxUploadSize = 50        # MB — tamanho máximo do CSV
+headless = true
+
+[theme]
+primaryColor = "#5B5FCF"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F5F7"
+textColor = "#333333"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
