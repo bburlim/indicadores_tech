@@ -4,3 +4,4 @@ __pycache__/
 .env
 dashboard.html
 .streamlit/secrets.toml
+test_sharepoint.py

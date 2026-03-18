@@ -25,6 +25,7 @@ def _get_token(tenant_id: str, client_id: str, client_secret: str) -> str:
         client_id,
         authority=authority,
         client_credential=client_secret,
+        validate_authority=False,
     )
     result = app.acquire_token_for_client(
         scopes=["https://graph.microsoft.com/.default"]
