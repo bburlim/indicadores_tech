@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .env
 dashboard.html
+.streamlit/secrets.toml

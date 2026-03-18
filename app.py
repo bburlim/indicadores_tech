@@ -142,36 +142,75 @@ def pivot_table(pivot: pd.DataFrame, meses: list[str]):
 # FILTROS & CARREGAMENTO
 # ─────────────────────────────────────────────
 
+import os
+import tempfile
+from sharepoint import secrets_configured, get_secrets, load_from_sharepoint
+
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2920/2920244.png", width=48)
     st.title("Indicadores Tech")
     st.divider()
 
-    uploaded = st.file_uploader("📂 CSV exportado do Jira", type="csv")
+    # ── Fonte de dados ───────────────────────────────
+    sp_ok = secrets_configured()
 
+    if sp_ok:
+        st.success("🔗 SharePoint configurado")
+        col_refresh, col_info = st.columns([2, 1])
+        with col_refresh:
+            if st.button("🔄 Atualizar dados", use_container_width=True):
+                load_from_sharepoint.clear()
+                st.rerun()
+        with col_info:
+            st.caption("Cache: 1h")
+
+        try:
+            with st.spinner("Buscando CSV no SharePoint..."):
+                sp = get_secrets()
+                csv_bytes = load_from_sharepoint(**sp)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+                tmp.write(csv_bytes.read())
+                tmp_path = tmp.name
+            df_full = load_csv(tmp_path)
+            os.unlink(tmp_path)
+            st.caption(f"📄 {len(df_full)} itens · {sp['file_path'].split('/')[-1]}")
+        except Exception as e:
+            st.error(f"Erro ao acessar SharePoint:\n{e}")
+            st.info("Use o upload manual abaixo como alternativa.")
+            df_full = None
+
+    else:
+        df_full = None
+        st.info(
+            "SharePoint não configurado. "
+            "Adicione as secrets ou faça upload do CSV manualmente."
+        )
+
+    # Upload manual (fallback ou modo standalone)
+    st.divider()
+    uploaded = st.file_uploader(
+        "📂 Upload manual do CSV" if sp_ok else "📂 CSV exportado do Jira",
+        type="csv",
+        help="Sobrepõe o arquivo do SharePoint se enviado.",
+    )
     if uploaded:
         with st.spinner("Carregando dados..."):
-            import tempfile, os
             with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
                 tmp.write(uploaded.read())
                 tmp_path = tmp.name
             df_full = load_csv(tmp_path)
             os.unlink(tmp_path)
-        st.success(f"{len(df_full)} itens carregados")
-    else:
-        # Usa CSV padrão se existir
-        default_csv = os.path.join(os.path.dirname(__file__), "data", "jira.csv") \
-            if os.path.exists(os.path.join(os.path.dirname(__file__), "data", "jira.csv")) \
-            else None
-        if default_csv:
-            import os
-            df_full = load_csv(default_csv)
-            st.info(f"Usando CSV padrão ({len(df_full)} itens). Faça upload para usar seus dados.")
-        else:
-            st.warning("Faça upload de um CSV exportado do Jira para começar.")
-            st.stop()
+        st.success(f"{len(df_full)} itens carregados (upload manual)")
 
-    import os
+    # CSV padrão local (desenvolvimento)
+    if df_full is None:
+        default_csv = os.path.join(os.path.dirname(__file__), "data", "jira.csv")
+        if os.path.exists(default_csv):
+            df_full = load_csv(default_csv)
+            st.caption(f"⚙️ Usando CSV local de desenvolvimento ({len(df_full)} itens)")
+        else:
+            st.warning("Configure o SharePoint ou faça upload de um CSV para começar.")
+            st.stop()
 
     st.divider()
     st.subheader("Filtros")
