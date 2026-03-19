@@ -143,8 +143,8 @@ def pivot_table(pivot: pd.DataFrame, meses: list[str]):
 # ─────────────────────────────────────────────
 
 import os
-import tempfile
-from sharepoint import secrets_configured, get_secrets, load_from_sharepoint
+# import tempfile
+# from sharepoint import secrets_configured, get_secrets, load_from_sharepoint
 from jira_api import (
     jira_secrets_configured, get_jira_secrets, load_from_jira, test_connection, debug_jql
 )
@@ -156,11 +156,11 @@ with st.sidebar:
 
     # ── Fonte de dados ───────────────────────────────
     jira_ok = jira_secrets_configured()
-    sp_ok   = secrets_configured()
+    # sp_ok   = secrets_configured()
     df_full = None
     fonte   = None
 
-    # 1. Jira API (prioritária)
+    # 1. Jira API
     if jira_ok:
         st.success("🟠 Jira API configurada")
         col_r, col_i = st.columns([2, 1])
@@ -191,62 +191,44 @@ with st.sidebar:
             st.error(f"Erro na API do Jira:\n{e}")
             df_full = None
 
-    # 2. SharePoint (fallback se Jira não configurado)
-    if df_full is None and sp_ok:
-        st.success("🔗 SharePoint configurado")
-        col_r, col_i = st.columns([2, 1])
-        with col_r:
-            if st.button("🔄 Atualizar dados", use_container_width=True, key="refresh_sp"):
-                load_from_sharepoint.clear()
-                st.rerun()
-        with col_i:
-            st.caption("Cache: 1h")
+    # 2. SharePoint (fallback via CSV) — desativado temporariamente
+    # if df_full is None and sp_ok:
+    #     try:
+    #         sp = get_secrets()
+    #         csv_bytes = load_from_sharepoint(**sp)
+    #         with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+    #             tmp.write(csv_bytes.read())
+    #             tmp_path = tmp.name
+    #         df_full = load_csv(tmp_path)
+    #         os.unlink(tmp_path)
+    #         fonte = "sharepoint"
+    #     except Exception as e:
+    #         st.error(f"Erro ao acessar SharePoint:\n{e}")
 
-        try:
-            with st.spinner("Buscando CSV no SharePoint..."):
-                sp = get_secrets()
-                csv_bytes = load_from_sharepoint(**sp)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-                tmp.write(csv_bytes.read())
-                tmp_path = tmp.name
-            df_full = load_csv(tmp_path)
-            os.unlink(tmp_path)
-            fonte = "sharepoint"
-            st.caption(f"📄 {len(df_full)} itens · {sp['file_path'].split('/')[-1]}")
-        except Exception as e:
-            st.error(f"Erro ao acessar SharePoint:\n{e}")
-            df_full = None
+    # 3. Upload manual de CSV — desativado temporariamente
+    # st.divider()
+    # uploaded = st.file_uploader("📂 Upload manual do CSV", type="csv")
+    # if uploaded:
+    #     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+    #         tmp.write(uploaded.read())
+    #         tmp_path = tmp.name
+    #     df_full = load_csv(tmp_path)
+    #     os.unlink(tmp_path)
+    #     fonte = "upload"
 
-    if not jira_ok and not sp_ok:
-        st.info("Configure Jira API ou SharePoint nas secrets, ou faça upload do CSV.")
+    # 4. CSV local (desenvolvimento) — desativado temporariamente
+    # if df_full is None:
+    #     default_csv = os.path.join(os.path.dirname(__file__), "data", "jira.csv")
+    #     if os.path.exists(default_csv):
+    #         df_full = load_csv(default_csv)
+    #         fonte = "local"
 
-    # 3. Upload manual (sempre disponível como alternativa)
-    st.divider()
-    uploaded = st.file_uploader(
-        "📂 Upload manual do CSV",
-        type="csv",
-        help="Substitui a fonte automática se enviado.",
-    )
-    if uploaded:
-        with st.spinner("Carregando..."):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-                tmp.write(uploaded.read())
-                tmp_path = tmp.name
-            df_full = load_csv(tmp_path)
-            os.unlink(tmp_path)
-        fonte = "upload"
-        st.success(f"{len(df_full)} itens carregados")
+    if not jira_ok:
+        st.info("Configure as credenciais do Jira nas secrets para carregar os dados.")
 
-    # 4. CSV local (desenvolvimento)
     if df_full is None:
-        default_csv = os.path.join(os.path.dirname(__file__), "data", "jira.csv")
-        if os.path.exists(default_csv):
-            df_full = load_csv(default_csv)
-            fonte = "local"
-            st.caption(f"⚙️ CSV local ({len(df_full)} itens)")
-        else:
-            st.warning("Nenhuma fonte de dados disponível.")
-            st.stop()
+        st.warning("Nenhuma fonte de dados disponível.")
+        st.stop()
 
     st.divider()
     st.subheader("Filtros")
