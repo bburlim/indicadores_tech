@@ -195,6 +195,8 @@ with st.sidebar:
                     from requests.auth import HTTPBasicAuth as _BA
                     fm = discover_fields(secrets["jira_url"], secrets["email"], secrets["api_token"])
                     st.write("**Campos mapeados:**", fm)
+                    st.write("**Tipos de issue (tipo → tipo_class):**",
+                             df_full.groupby("tipo")["tipo_class"].first().to_dict())
                     tis_ok = df_full["time_in_status"].notna() & (df_full["time_in_status"] != "")
                     st.write(f"**time_in_status preenchido:** {tis_ok.sum()} / {len(df_full)}")
                     st.write(f"**cycle_time não-nulo:** {df_full['cycle_time'].notna().sum()} / {len(df_full)}")
