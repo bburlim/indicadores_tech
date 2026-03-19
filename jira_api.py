@@ -102,80 +102,60 @@ def discover_fields(jira_url: str, email: str, api_token: str) -> Dict[str, str]
 # BUSCA DE ISSUES
 # ─────────────────────────────────────────────
 
-def _search(
-    jira_url: str,
-    auth: HTTPBasicAuth,
-    payload: Dict,
-    timeout: int = 60,
-) -> Dict:
-    """
-    Executa busca via POST /rest/api/3/search (método atual do Jira Cloud).
-    O GET foi descontinuado (410 Gone) em vários tenants.
-    """
-    resp = requests.post(
-        f"{jira_url}/rest/api/3/search",
-        auth=auth,
-        headers=_headers(),
-        json=payload,
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    return resp.json()
-
-
 def fetch_issues(
     jira_url: str,
     email: str,
     api_token: str,
     jql: str,
     field_map: Dict[str, str],
-    page_size: int = 100,
+    page_size: int = 50,
     progress_callback=None,
 ) -> List[Dict]:
     """
-    Busca todos os issues que satisfazem o JQL com paginação automática.
-    Usa POST /rest/api/3/search (substitui o GET depreciado).
-    Retorna lista de dicts no formato da API do Jira.
+    Busca todos os issues via POST /rest/api/3/search/jql (API atual do Jira Cloud).
+    Usa paginação por cursor (nextPageToken) — o offset-based foi depreciado (410 Gone).
     """
     auth = _auth(email, api_token)
 
-    # Campos padrão + campos customizados descobertos
     standard = [
         "summary", "issuetype", "status", "created", "resolutiondate",
         "priority", "assignee", "reporter", "labels", "parent",
     ]
-    custom = list(field_map.values())
-    fields = list(dict.fromkeys(standard + custom))  # dedup preservando ordem
-
-    # Primeira chamada para descobrir o total
-    first = _search(jira_url, auth, {
-        "jql": jql, "maxResults": 1, "startAt": 0, "fields": ["summary"],
-    }, timeout=30)
-    total = first.get("total", 0)
-
-    if total == 0:
-        return []
+    fields = list(dict.fromkeys(standard + list(field_map.values())))
 
     all_issues: List[Dict] = []
-    start = 0
+    next_page_token: Optional[str] = None
 
-    while start < total:
-        data = _search(jira_url, auth, {
+    while True:
+        payload: Dict = {
             "jql":        jql,
             "maxResults": page_size,
-            "startAt":    start,
             "fields":     fields,
-        })
+        }
+        if next_page_token:
+            payload["nextPageToken"] = next_page_token
+
+        resp = requests.post(
+            f"{jira_url}/rest/api/3/search/jql",
+            auth=auth,
+            headers=_headers(),
+            json=payload,
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
         batch = data.get("issues", [])
-        if not batch:
-            break
         all_issues.extend(batch)
-        start += len(batch)
 
         if progress_callback:
-            progress_callback(min(start / total, 1.0), f"{start}/{total} issues")
+            progress_callback(len(all_issues), f"{len(all_issues)} issues carregados")
 
-        # Respeita rate limit do Jira Cloud
+        # Cursor para próxima página — ausente ou null quando é a última
+        next_page_token = data.get("nextPageToken")
+        if not next_page_token or data.get("isLast", False) or not batch:
+            break
+
         time.sleep(0.1)
 
     return all_issues
