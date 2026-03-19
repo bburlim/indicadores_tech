@@ -146,7 +146,7 @@ import os
 import tempfile
 from sharepoint import secrets_configured, get_secrets, load_from_sharepoint
 from jira_api import (
-    jira_secrets_configured, get_jira_secrets, load_from_jira, test_connection
+    jira_secrets_configured, get_jira_secrets, load_from_jira, test_connection, debug_jql
 )
 
 with st.sidebar:
@@ -177,6 +177,12 @@ with st.sidebar:
                 df_full = load_from_jira(**secrets)
             if df_full.empty:
                 st.warning("⚠️ API do Jira conectada, mas nenhum issue retornado. Verifique o JQL nas secrets.")
+                if st.button("🔍 Debug: testar JQL agora"):
+                    info = debug_jql(
+                        secrets["jira_url"], secrets["email"],
+                        secrets["api_token"], secrets["jql"],
+                    )
+                    st.json(info)
                 df_full = None
             else:
                 fonte = "jira"

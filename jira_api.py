@@ -463,6 +463,25 @@ def get_jira_secrets() -> Dict:
     }
 
 
+def debug_jql(jira_url: str, email: str, api_token: str, jql: str) -> Dict:
+    """Faz uma chamada de teste com maxResults=1 e retorna a resposta bruta."""
+    auth = _auth(email, api_token)
+    payload = {"jql": jql, "maxResults": 1, "fields": ["summary", "issuetype", "status"]}
+    resp = requests.post(
+        f"{jira_url}/rest/api/3/search/jql",
+        auth=auth, headers=_headers(), json=payload, timeout=30,
+    )
+    return {
+        "status_code": resp.status_code,
+        "jql_sent": jql,
+        "response_keys": list(resp.json().keys()) if resp.ok else [],
+        "total": resp.json().get("total", "n/a") if resp.ok else "n/a",
+        "issues_count": len(resp.json().get("issues", resp.json().get("values", []))) if resp.ok else 0,
+        "first_issue_key": (resp.json().get("issues") or resp.json().get("values") or [{}])[0].get("key", "—") if resp.ok else "—",
+        "error": resp.text[:300] if not resp.ok else None,
+    }
+
+
 def test_connection(jira_url: str, email: str, api_token: str) -> tuple[bool, str]:
     """Testa credenciais via GET /rest/api/3/myself. Retorna (ok, mensagem)."""
     try:
