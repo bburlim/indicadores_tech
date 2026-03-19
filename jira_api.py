@@ -244,11 +244,15 @@ def issues_to_dataframe(
             elif isinstance(sprint_raw, dict):
                 sprint = sprint_raw.get("name", "")
 
+        assignee = f.get("assignee") or {}
+        assignee_name = assignee.get("displayName", "")
+
         row = {
             "key":                issue.get("key", ""),
             "resumo":             f.get("summary", ""),
             "tipo":               f.get("issuetype", {}).get("name", ""),
             "status":             f.get("status", {}).get("name", ""),
+            "responsavel":        assignee_name,
             "status_cat":         status_cat,
             "status_cat_changed": "",
             "prioridade":         (f.get("priority") or {}).get("name", ""),

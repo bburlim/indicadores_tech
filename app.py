@@ -282,6 +282,14 @@ with st.sidebar:
     equipes = [e for e in equipes if e.strip()]
     equipe_sel = st.multiselect("Equipe", equipes, default=equipes) if equipes else equipes
 
+    # Responsável
+    if "responsavel" in df_full.columns:
+        pessoas = sorted(df_full["responsavel"].dropna().unique().tolist())
+        pessoas = [p for p in pessoas if p.strip()]
+        pessoa_sel = st.multiselect("Responsável", pessoas, default=pessoas) if pessoas else pessoas
+    else:
+        pessoa_sel = []
+
     # Tipo
     tipo_sel = st.multiselect(
         "Tipo de Item",
@@ -316,6 +324,10 @@ df = df[mask_periodo]
 # Filtro de equipe
 if equipe_sel and equipes:
     df = df[df["equipe"].isin(equipe_sel) | df["equipe"].isna() | (df["equipe"] == "")]
+
+# Filtro de responsável
+if pessoa_sel and "responsavel" in df.columns:
+    df = df[df["responsavel"].isin(pessoa_sel) | df["responsavel"].isna() | (df["responsavel"] == "")]
 
 # Filtro de tipo
 if tipo_sel:
@@ -751,6 +763,7 @@ with tab_vel:
         show_cols = {
             "key": "Código",
             "resumo": "Título",
+            "responsavel": "Responsável",
             "equipe": "Equipe",
             "tipo_class": "Tipo",
             "resolvido": "Dt. Resolução",
