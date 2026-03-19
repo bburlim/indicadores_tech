@@ -39,7 +39,7 @@ FIELD_NAMES = {
     "time_in_status":     "[CHART] Time in Status",
     "actual_start":       "Actual start",
     "actual_end":         "Actual end",
-    "team_name":          "Team Name",
+    "team_name":          "Team",
     "categoria_trabalho": "Categoria de trabalho",
     "categoria":          "Categoria",
     "sprint":             "Sprint",
