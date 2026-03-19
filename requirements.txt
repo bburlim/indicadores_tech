@@ -4,3 +4,4 @@ plotly>=5.18.0
 numpy>=1.24.0
 msal>=1.26.0
 requests>=2.31.0
+# jira_api.py usa apenas requests (já incluído acima)

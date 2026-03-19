@@ -145,6 +145,9 @@ def pivot_table(pivot: pd.DataFrame, meses: list[str]):
 import os
 import tempfile
 from sharepoint import secrets_configured, get_secrets, load_from_sharepoint
+from jira_api import (
+    jira_secrets_configured, get_jira_secrets, load_from_jira, test_connection
+)
 
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2920/2920244.png", width=48)
@@ -152,16 +155,41 @@ with st.sidebar:
     st.divider()
 
     # ── Fonte de dados ───────────────────────────────
-    sp_ok = secrets_configured()
+    jira_ok = jira_secrets_configured()
+    sp_ok   = secrets_configured()
+    df_full = None
+    fonte   = None
 
-    if sp_ok:
+    # 1. Jira API (prioritária)
+    if jira_ok:
+        st.success("🟠 Jira API configurada")
+        col_r, col_i = st.columns([2, 1])
+        with col_r:
+            if st.button("🔄 Atualizar dados", use_container_width=True, key="refresh_jira"):
+                load_from_jira.clear()
+                st.rerun()
+        with col_i:
+            st.caption("Cache: 1h")
+
+        try:
+            with st.spinner("Buscando issues do Jira..."):
+                secrets = get_jira_secrets()
+                df_full = load_from_jira(**secrets)
+            fonte = "jira"
+            st.caption(f"📋 {len(df_full)} issues · Jira API")
+        except Exception as e:
+            st.error(f"Erro na API do Jira:\n{e}")
+            df_full = None
+
+    # 2. SharePoint (fallback se Jira não configurado)
+    if df_full is None and sp_ok:
         st.success("🔗 SharePoint configurado")
-        col_refresh, col_info = st.columns([2, 1])
-        with col_refresh:
-            if st.button("🔄 Atualizar dados", use_container_width=True):
+        col_r, col_i = st.columns([2, 1])
+        with col_r:
+            if st.button("🔄 Atualizar dados", use_container_width=True, key="refresh_sp"):
                 load_from_sharepoint.clear()
                 st.rerun()
-        with col_info:
+        with col_i:
             st.caption("Cache: 1h")
 
         try:
@@ -173,43 +201,41 @@ with st.sidebar:
                 tmp_path = tmp.name
             df_full = load_csv(tmp_path)
             os.unlink(tmp_path)
+            fonte = "sharepoint"
             st.caption(f"📄 {len(df_full)} itens · {sp['file_path'].split('/')[-1]}")
         except Exception as e:
             st.error(f"Erro ao acessar SharePoint:\n{e}")
-            st.info("Use o upload manual abaixo como alternativa.")
             df_full = None
 
-    else:
-        df_full = None
-        st.info(
-            "SharePoint não configurado. "
-            "Adicione as secrets ou faça upload do CSV manualmente."
-        )
+    if not jira_ok and not sp_ok:
+        st.info("Configure Jira API ou SharePoint nas secrets, ou faça upload do CSV.")
 
-    # Upload manual (fallback ou modo standalone)
+    # 3. Upload manual (sempre disponível como alternativa)
     st.divider()
     uploaded = st.file_uploader(
-        "📂 Upload manual do CSV" if sp_ok else "📂 CSV exportado do Jira",
+        "📂 Upload manual do CSV",
         type="csv",
-        help="Sobrepõe o arquivo do SharePoint se enviado.",
+        help="Substitui a fonte automática se enviado.",
     )
     if uploaded:
-        with st.spinner("Carregando dados..."):
+        with st.spinner("Carregando..."):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
                 tmp.write(uploaded.read())
                 tmp_path = tmp.name
             df_full = load_csv(tmp_path)
             os.unlink(tmp_path)
-        st.success(f"{len(df_full)} itens carregados (upload manual)")
+        fonte = "upload"
+        st.success(f"{len(df_full)} itens carregados")
 
-    # CSV padrão local (desenvolvimento)
+    # 4. CSV local (desenvolvimento)
     if df_full is None:
         default_csv = os.path.join(os.path.dirname(__file__), "data", "jira.csv")
         if os.path.exists(default_csv):
             df_full = load_csv(default_csv)
-            st.caption(f"⚙️ Usando CSV local de desenvolvimento ({len(df_full)} itens)")
+            fonte = "local"
+            st.caption(f"⚙️ CSV local ({len(df_full)} itens)")
         else:
-            st.warning("Configure o SharePoint ou faça upload de um CSV para começar.")
+            st.warning("Nenhuma fonte de dados disponível.")
             st.stop()
 
     st.divider()

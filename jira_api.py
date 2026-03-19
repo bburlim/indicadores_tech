@@ -1,0 +1,482 @@
+"""
+Integração com Jira REST API v3 (Jira Cloud).
+
+Busca issues via JQL, descobre automaticamente os IDs dos campos
+customizados e retorna um DataFrame compatível com dashboard.py.
+
+Configuração em .streamlit/secrets.toml:
+
+    [jira]
+    url       = "https://suaempresa.atlassian.net"
+    email     = "usuario@empresa.com"
+    api_token = "seu-api-token"
+    jql       = "project = TEC ORDER BY created DESC"
+
+Como gerar o API token:
+    https://id.atlassian.com/manage-profile/security/api-tokens
+"""
+
+from __future__ import annotations
+
+import re
+from datetime import datetime
+from typing import Dict, List, Optional
+import time
+
+import numpy as np
+import pandas as pd
+import requests
+import streamlit as st
+from requests.auth import HTTPBasicAuth
+
+# ─────────────────────────────────────────────
+# CAMPOS CUSTOMIZADOS — nomes buscados na API
+# ─────────────────────────────────────────────
+
+# O script descobre o ID real de cada campo pelo nome.
+# Ajuste os nomes abaixo se o seu Jira usa nomes diferentes.
+FIELD_NAMES = {
+    "time_in_status":     "[CHART] Time in Status",
+    "actual_start":       "Actual start",
+    "actual_end":         "Actual end",
+    "team_name":          "Team Name",
+    "categoria_trabalho": "Categoria de trabalho",
+    "categoria":          "Categoria",
+    "sprint":             "Sprint",
+}
+
+# Mapeamento de statusCategory.name (EN) → PT para compatibilidade
+STATUS_CATEGORY_MAP = {
+    "To Do":       "Itens Pendentes",
+    "In Progress": "Em andamento",
+    "Done":        "Itens concluídos",
+}
+
+
+# ─────────────────────────────────────────────
+# AUTENTICAÇÃO
+# ─────────────────────────────────────────────
+
+def _auth(email: str, api_token: str) -> HTTPBasicAuth:
+    return HTTPBasicAuth(email, api_token)
+
+
+def _headers() -> Dict:
+    return {"Accept": "application/json", "Content-Type": "application/json"}
+
+
+# ─────────────────────────────────────────────
+# DESCOBERTA DE CAMPOS
+# ─────────────────────────────────────────────
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def discover_fields(jira_url: str, email: str, api_token: str) -> Dict[str, str]:
+    """
+    Retorna dict {apelido_interno: field_id} para todos os campos em FIELD_NAMES.
+    Faz GET /rest/api/3/field e busca pelo nome (case-insensitive).
+    Cache de 24h.
+    """
+    resp = requests.get(
+        f"{jira_url}/rest/api/3/field",
+        auth=_auth(email, api_token),
+        headers=_headers(),
+        timeout=30,
+    )
+    resp.raise_for_status()
+
+    # Monta índice nome_lower → id
+    name_to_id: Dict[str, str] = {}
+    for f in resp.json():
+        name_to_id[f["name"].lower()] = f["id"]
+
+    result: Dict[str, str] = {}
+    for alias, field_name in FIELD_NAMES.items():
+        fid = name_to_id.get(field_name.lower())
+        if fid:
+            result[alias] = fid
+
+    return result
+
+
+# ─────────────────────────────────────────────
+# BUSCA DE ISSUES
+# ─────────────────────────────────────────────
+
+def fetch_issues(
+    jira_url: str,
+    email: str,
+    api_token: str,
+    jql: str,
+    field_map: Dict[str, str],
+    page_size: int = 100,
+    progress_callback=None,
+) -> List[Dict]:
+    """
+    Busca todos os issues que satisfazem o JQL com paginação automática.
+    Retorna lista de dicts no formato da API do Jira.
+    """
+    auth = _auth(email, api_token)
+    hdrs = _headers()
+
+    # Campos padrão + campos customizados descobertos
+    standard = [
+        "summary", "issuetype", "status", "created", "resolutiondate",
+        "priority", "assignee", "reporter", "labels", "parent",
+    ]
+    custom = list(field_map.values())
+    fields = list(dict.fromkeys(standard + custom))  # dedup preservando ordem
+
+    all_issues: List[Dict] = []
+    start = 0
+
+    # Primeira chamada para descobrir o total
+    resp = requests.get(
+        f"{jira_url}/rest/api/3/search",
+        auth=auth,
+        headers=hdrs,
+        params={"jql": jql, "maxResults": 1, "startAt": 0, "fields": "summary"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    total = resp.json().get("total", 0)
+
+    if total == 0:
+        return []
+
+    while start < total:
+        resp = requests.get(
+            f"{jira_url}/rest/api/3/search",
+            auth=auth,
+            headers=hdrs,
+            params={
+                "jql": jql,
+                "maxResults": page_size,
+                "startAt": start,
+                "fields": ",".join(fields),
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        batch = resp.json().get("issues", [])
+        if not batch:
+            break
+        all_issues.extend(batch)
+        start += len(batch)
+
+        if progress_callback:
+            progress_callback(min(start / total, 1.0), f"{start}/{total} issues")
+
+        # Respeita rate limit do Jira Cloud (10 req/s)
+        time.sleep(0.1)
+
+    return all_issues
+
+
+# ─────────────────────────────────────────────
+# PARSE DE DATAS E CAMPOS
+# ─────────────────────────────────────────────
+
+def _parse_date(val) -> Optional[datetime]:
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val
+    s = str(val).strip()
+    # ISO 8601: 2025-01-15T10:30:00.000+0000
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z",
+                "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%d"):
+        try:
+            dt = datetime.strptime(s[:26], fmt[:len(fmt)])
+            return dt.replace(tzinfo=None)
+        except ValueError:
+            continue
+    try:
+        return pd.to_datetime(s).to_pydatetime().replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def _extract_team(val) -> str:
+    if not val:
+        return ""
+    if isinstance(val, dict):
+        return val.get("name", val.get("value", val.get("title", "")))
+    if isinstance(val, list) and val:
+        return _extract_team(val[0])
+    return str(val).strip()
+
+
+def _extract_string(val) -> str:
+    if not val:
+        return ""
+    if isinstance(val, dict):
+        return val.get("value", val.get("name", ""))
+    if isinstance(val, list):
+        return ", ".join(_extract_string(v) for v in val)
+    return str(val).strip()
+
+
+# ─────────────────────────────────────────────
+# CONVERSÃO PARA DATAFRAME
+# ─────────────────────────────────────────────
+
+def issues_to_dataframe(
+    issues: List[Dict],
+    field_map: Dict[str, str],
+) -> pd.DataFrame:
+    """
+    Converte lista de issues da API Jira para DataFrame
+    no mesmo formato produzido por dashboard.load_csv().
+    """
+    rows = []
+    for issue in issues:
+        f = issue.get("fields", {})
+
+        # Categoria do status (PT-BR para compatibilidade com load_csv)
+        cat_en = f.get("status", {}).get("statusCategory", {}).get("name", "")
+        status_cat = STATUS_CATEGORY_MAP.get(cat_en, cat_en)
+
+        # Campos customizados via field_map
+        tis_raw       = f.get(field_map.get("time_in_status", ""), "") or ""
+        actual_start  = _parse_date(f.get(field_map.get("actual_start", ""), ""))
+        actual_end    = _parse_date(f.get(field_map.get("actual_end", ""), ""))
+        equipe        = _extract_team(f.get(field_map.get("team_name", ""), ""))
+        cat_trabalho  = _extract_string(f.get(field_map.get("categoria_trabalho", ""), ""))
+        categoria     = _extract_string(f.get(field_map.get("categoria", ""), ""))
+
+        # Sprint name
+        sprint_raw = f.get(field_map.get("sprint", ""), []) or []
+        sprint = ""
+        if sprint_raw:
+            if isinstance(sprint_raw, list) and sprint_raw:
+                sv = sprint_raw[-1]  # sprint mais recente
+                sprint = sv.get("name", "") if isinstance(sv, dict) else str(sv)
+            elif isinstance(sprint_raw, dict):
+                sprint = sprint_raw.get("name", "")
+
+        row = {
+            "key":                issue.get("key", ""),
+            "resumo":             f.get("summary", ""),
+            "tipo":               f.get("issuetype", {}).get("name", ""),
+            "status":             f.get("status", {}).get("name", ""),
+            "status_cat":         status_cat,
+            "status_cat_changed": "",
+            "prioridade":         (f.get("priority") or {}).get("name", ""),
+            "criado_str":         f.get("created", ""),
+            "resolvido_str":      f.get("resolutiondate", "") or "",
+            "actual_start_str":   "",
+            "actual_end_str":     "",
+            "criado":             _parse_date(f.get("created")),
+            "resolvido":          _parse_date(f.get("resolutiondate")),
+            "actual_start":       actual_start,
+            "actual_end":         actual_end,
+            "equipe":             equipe,
+            "time_in_status":     str(tis_raw) if tis_raw else "",
+            "categoria_trabalho": cat_trabalho,
+            "categoria":          categoria,
+            "labels":             ", ".join(f.get("labels", [])),
+            "sprint":             sprint,
+        }
+        rows.append(row)
+
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+# ─────────────────────────────────────────────
+# FUNÇÃO PRINCIPAL — retorna DataFrame pronto
+# ─────────────────────────────────────────────
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_from_jira(
+    jira_url: str,
+    email: str,
+    api_token: str,
+    jql: str,
+) -> pd.DataFrame:
+    """
+    Ponto de entrada principal.
+    Busca issues do Jira e retorna DataFrame processado pelo dashboard.py.
+    Cache de 1h — use st.cache_data.clear() para forçar atualização.
+    """
+    from dashboard import (
+        parse_time_in_status,
+        ACTIVE_STATUS_IDS,
+        DONE_STATUS_IDS,
+        DEFEITO_TYPES,
+        HISTORIA_TYPES,
+        PESO_DEFEITO,
+        PESO_HISTORIA_ATE_1_DIA,
+        PESO_HISTORIA_1_3_DIAS,
+        PESO_HISTORIA_4_10_DIAS,
+        PESO_HISTORIA_11_MAIS_DIAS,
+        ORIGEM_CLIENTE_KEYWORDS,
+    )
+
+    field_map = discover_fields(jira_url, email, api_token)
+    issues    = fetch_issues(jira_url, email, api_token, jql, field_map)
+
+    if not issues:
+        return pd.DataFrame()
+
+    df = issues_to_dataframe(issues, field_map)
+
+    # ── Aplica as mesmas transformações de dashboard.load_csv ──
+
+    # Classificação Defeito / História
+    def classifica_tipo(row):
+        ct = str(row.get("categoria_trabalho", "")).strip().lower()
+        t  = str(row.get("tipo", "")).strip()
+        if ct:
+            if "bug" in ct or "defeito" in ct:
+                return "Defeito"
+            if "hist" in ct or "story" in ct:
+                return "História"
+        if t in DEFEITO_TYPES:
+            return "Defeito"
+        if t in HISTORIA_TYPES:
+            return "História"
+        return "Outro"
+
+    df["tipo_class"] = df.apply(classifica_tipo, axis=1)
+
+    # Concluído
+    df["concluido"] = df["status_cat"].str.strip().isin(
+        ["Itens concluídos", "Done", "Concluído"]
+    )
+
+    # Lead Time
+    def lead_time(row):
+        if pd.notna(row.get("criado")) and pd.notna(row.get("resolvido")):
+            return (row["resolvido"] - row["criado"]).total_seconds() / 86400
+        return np.nan
+
+    df["lead_time"] = df.apply(lead_time, axis=1)
+
+    # Time in Status parse
+    df["time_in_status_parsed"] = df["time_in_status"].apply(parse_time_in_status)
+
+    # Cycle Time
+    def cycle_time(row):
+        if pd.notna(row.get("actual_start")) and pd.notna(row.get("resolvido")):
+            return (row["resolvido"] - row["actual_start"]).total_seconds() / 86400
+        tis = row.get("time_in_status_parsed", {})
+        total_ms = sum(tis.values())
+        lt = row.get("lead_time", np.nan)
+        if not tis or total_ms == 0 or pd.isna(lt) or lt == 0:
+            return np.nan
+        if ACTIVE_STATUS_IDS and DONE_STATUS_IDS:
+            active_ms = sum(ms for sid, ms in tis.items() if sid in ACTIVE_STATUS_IDS)
+            done_ms   = sum(ms for sid, ms in tis.items() if sid in DONE_STATUS_IDS)
+            workflow_ms = total_ms - done_ms
+            if active_ms > 0 and workflow_ms > 0:
+                return lt * (active_ms / workflow_ms)
+        return np.nan
+
+    df["cycle_time"] = df.apply(cycle_time, axis=1)
+
+    # Touch Time
+    def touch_time_ms(row):
+        tis = row.get("time_in_status_parsed", {})
+        if not tis:
+            return np.nan
+        if ACTIVE_STATUS_IDS:
+            return sum(ms for sid, ms in tis.items() if sid in ACTIVE_STATUS_IDS)
+        if DONE_STATUS_IDS:
+            return sum(ms for sid, ms in tis.items() if sid not in DONE_STATUS_IDS)
+        return sum(tis.values())
+
+    df["touch_time_ms"]   = df.apply(touch_time_ms, axis=1)
+    df["touch_time_dias"] = df["touch_time_ms"] / 86400000
+
+    # Flow Efficiency
+    def flow_eff(row):
+        lt = row.get("lead_time", np.nan)
+        tt = row.get("touch_time_dias", np.nan)
+        if pd.notna(lt) and pd.notna(tt) and lt > 0:
+            return min(tt / lt, 1.0)
+        return np.nan
+
+    df["flow_efficiency"] = df.apply(flow_eff, axis=1)
+
+    # Vazão Qualificada
+    def vazao(row):
+        if row["tipo_class"] == "Defeito":
+            return PESO_DEFEITO
+        if row["tipo_class"] == "História":
+            ct = row.get("cycle_time", np.nan)
+            if pd.isna(ct):
+                return PESO_HISTORIA_4_10_DIAS
+            if ct <= 1:
+                return PESO_HISTORIA_ATE_1_DIA
+            if ct <= 3:
+                return PESO_HISTORIA_1_3_DIAS
+            if ct <= 10:
+                return PESO_HISTORIA_4_10_DIAS
+            return PESO_HISTORIA_11_MAIS_DIAS
+        return 0.0
+
+    df["vazao_qual"] = df.apply(vazao, axis=1)
+
+    # Origem
+    def origem(row):
+        texto = " ".join([
+            str(row.get("resumo", "")),
+            str(row.get("labels", "")),
+            str(row.get("categoria", "")),
+        ]).lower()
+        for kw in ORIGEM_CLIENTE_KEYWORDS:
+            if kw in texto:
+                return "Cliente"
+        return "Interno"
+
+    df["origem"] = df.apply(origem, axis=1)
+
+    # Mês criado / resolvido
+    df["mes_criado"]    = df["criado"].apply(
+        lambda d: d.strftime("%Y-%m") if pd.notna(d) else None
+    )
+    df["mes_resolvido"] = df["resolvido"].apply(
+        lambda d: d.strftime("%Y-%m") if pd.notna(d) else None
+    )
+
+    return df
+
+
+# ─────────────────────────────────────────────
+# HELPERS PARA app.py
+# ─────────────────────────────────────────────
+
+def jira_secrets_configured() -> bool:
+    try:
+        j = st.secrets.get("jira", {})
+        return all(j.get(k) for k in ["url", "email", "api_token", "jql"])
+    except Exception:
+        return False
+
+
+def get_jira_secrets() -> Dict:
+    j = st.secrets["jira"]
+    return {
+        "jira_url":  j["url"].rstrip("/"),
+        "email":     j["email"],
+        "api_token": j["api_token"],
+        "jql":       j["jql"],
+    }
+
+
+def test_connection(jira_url: str, email: str, api_token: str) -> tuple[bool, str]:
+    """Testa credenciais. Retorna (ok, mensagem)."""
+    try:
+        resp = requests.get(
+            f"{jira_url}/rest/api/3/myself",
+            auth=_auth(email, api_token),
+            headers=_headers(),
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            display = resp.json().get("displayName", email)
+            return True, f"Conectado como {display}"
+        return False, f"Erro {resp.status_code}: {resp.json().get('message', resp.text[:100])}"
+    except Exception as e:
+        return False, str(e)
