@@ -460,48 +460,28 @@ def tempo_por_status_total(df: pd.DataFrame) -> Dict[str, float]:
     return dict(totals)
 
 
+STATUS_NAMES: Dict[str, str] = {
+    "3":     "Em andamento",
+    "10006": "Concluído",
+    "10039": "Tarefas pendentes",
+    "10179": "Ag. Testes",
+    "10180": "Testando",
+    "10213": "Ag. Code Review",
+    "10284": "Ag. Ajuste de defeito",
+    "10285": "Ajustando defeito",
+    "10318": "Impedimento Dev",
+    "10319": "Impedimento Testes",
+    "10352": "Released",
+}
+
+
 def infer_status_names(df: pd.DataFrame) -> Dict[str, str]:
-    """
-    Tenta inferir nomes de status a partir de IDs usando heurísticas:
-    - IDs configurados em ACTIVE/DONE têm labels pré-definidos
-    - Demais IDs são rotulados como 'Espera/Fila' ou 'Desconhecido'
-    """
-    labels: Dict[str, str] = {}
+    """Retorna o nome real de cada status ID encontrado no TIS."""
     all_ids: Set[str] = set()
     for tis in df["time_in_status_parsed"]:
         all_ids |= set(tis.keys())
 
-    # Calcular tempo total e posição mediana na sequência
-    id_total_ms: Dict[str, int] = defaultdict(int)
-    id_positions: Dict[str, list] = defaultdict(list)
-    sequences = []
-    for tis in df["time_in_status_parsed"]:
-        seq = list(tis.keys())
-        sequences.append(seq)
-        for i, sid in enumerate(seq):
-            id_positions[sid].append(i / max(len(seq) - 1, 1))
-            id_total_ms[sid] += tis[sid]
-
-    # Último ID mais comum → provavelmente Done
-    from collections import Counter as _Counter
-    last_ids = _Counter(seq[-1] for seq in sequences if seq)
-    most_likely_done = last_ids.most_common(1)[0][0] if last_ids else None
-
-    for sid in sorted(all_ids):
-        if sid in DONE_STATUS_IDS:
-            labels[sid] = f"Done ({sid})"
-        elif sid in ACTIVE_STATUS_IDS:
-            labels[sid] = f"Ativo ({sid})"
-        elif sid == most_likely_done:
-            labels[sid] = f"Done-infer ({sid})"
-        else:
-            avg_pos = sum(id_positions[sid]) / len(id_positions[sid]) if id_positions[sid] else 0.5
-            if avg_pos < 0.2:
-                labels[sid] = f"Backlog/Entrada ({sid})"
-            else:
-                labels[sid] = f"Espera ({sid})"
-
-    return labels
+    return {sid: STATUS_NAMES.get(sid, f"Status {sid}") for sid in all_ids}
 
 
 def vazao_por_equipe_mensal(df: pd.DataFrame) -> pd.DataFrame:
