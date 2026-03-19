@@ -102,6 +102,27 @@ def discover_fields(jira_url: str, email: str, api_token: str) -> Dict[str, str]
 # BUSCA DE ISSUES
 # ─────────────────────────────────────────────
 
+def _search(
+    jira_url: str,
+    auth: HTTPBasicAuth,
+    payload: Dict,
+    timeout: int = 60,
+) -> Dict:
+    """
+    Executa busca via POST /rest/api/3/search (método atual do Jira Cloud).
+    O GET foi descontinuado (410 Gone) em vários tenants.
+    """
+    resp = requests.post(
+        f"{jira_url}/rest/api/3/search",
+        auth=auth,
+        headers=_headers(),
+        json=payload,
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def fetch_issues(
     jira_url: str,
     email: str,
@@ -113,10 +134,10 @@ def fetch_issues(
 ) -> List[Dict]:
     """
     Busca todos os issues que satisfazem o JQL com paginação automática.
+    Usa POST /rest/api/3/search (substitui o GET depreciado).
     Retorna lista de dicts no formato da API do Jira.
     """
     auth = _auth(email, api_token)
-    hdrs = _headers()
 
     # Campos padrão + campos customizados descobertos
     standard = [
@@ -126,38 +147,26 @@ def fetch_issues(
     custom = list(field_map.values())
     fields = list(dict.fromkeys(standard + custom))  # dedup preservando ordem
 
-    all_issues: List[Dict] = []
-    start = 0
-
     # Primeira chamada para descobrir o total
-    resp = requests.get(
-        f"{jira_url}/rest/api/3/search",
-        auth=auth,
-        headers=hdrs,
-        params={"jql": jql, "maxResults": 1, "startAt": 0, "fields": "summary"},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    total = resp.json().get("total", 0)
+    first = _search(jira_url, auth, {
+        "jql": jql, "maxResults": 1, "startAt": 0, "fields": ["summary"],
+    }, timeout=30)
+    total = first.get("total", 0)
 
     if total == 0:
         return []
 
+    all_issues: List[Dict] = []
+    start = 0
+
     while start < total:
-        resp = requests.get(
-            f"{jira_url}/rest/api/3/search",
-            auth=auth,
-            headers=hdrs,
-            params={
-                "jql": jql,
-                "maxResults": page_size,
-                "startAt": start,
-                "fields": ",".join(fields),
-            },
-            timeout=60,
-        )
-        resp.raise_for_status()
-        batch = resp.json().get("issues", [])
+        data = _search(jira_url, auth, {
+            "jql":        jql,
+            "maxResults": page_size,
+            "startAt":    start,
+            "fields":     fields,
+        })
+        batch = data.get("issues", [])
         if not batch:
             break
         all_issues.extend(batch)
@@ -166,7 +175,7 @@ def fetch_issues(
         if progress_callback:
             progress_callback(min(start / total, 1.0), f"{start}/{total} issues")
 
-        # Respeita rate limit do Jira Cloud (10 req/s)
+        # Respeita rate limit do Jira Cloud
         time.sleep(0.1)
 
     return all_issues
@@ -466,12 +475,12 @@ def get_jira_secrets() -> Dict:
 
 
 def test_connection(jira_url: str, email: str, api_token: str) -> tuple[bool, str]:
-    """Testa credenciais. Retorna (ok, mensagem)."""
+    """Testa credenciais via GET /rest/api/3/myself. Retorna (ok, mensagem)."""
     try:
         resp = requests.get(
             f"{jira_url}/rest/api/3/myself",
             auth=_auth(email, api_token),
-            headers=_headers(),
+            headers={"Accept": "application/json"},
             timeout=10,
         )
         if resp.status_code == 200:
