@@ -146,7 +146,8 @@ import os
 # import tempfile
 # from sharepoint import secrets_configured, get_secrets, load_from_sharepoint
 from jira_api import (
-    jira_secrets_configured, get_jira_secrets, load_from_jira, test_connection, debug_jql
+    jira_secrets_configured, get_jira_secrets, load_from_jira, test_connection, debug_jql,
+    discover_fields,
 )
 
 with st.sidebar:
@@ -167,6 +168,7 @@ with st.sidebar:
         with col_r:
             if st.button("🔄 Atualizar dados", use_container_width=True, key="refresh_jira"):
                 load_from_jira.clear()
+                discover_fields.clear()
                 st.rerun()
         with col_i:
             st.caption("Cache: 1h")
@@ -454,7 +456,7 @@ with tab_prod:
             st.markdown("**Vazão Qualificada por Equipe**")
             st.dataframe(tbl, hide_index=True, use_container_width=True)
         else:
-            st.info("Dados de equipe não disponíveis (campo Team Name vazio no CSV).")
+            st.info("Dados de equipe não disponíveis (campo Team não preenchido nos issues).")
 
 
 # ═══════════════════════════════════════════════
