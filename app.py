@@ -189,6 +189,8 @@ with st.sidebar:
                 st.caption(f"📋 {len(df_full)} issues · Jira API")
                 with st.expander("🔍 Debug: campos descobertos"):
                     from jira_api import discover_fields
+                    import requests as _req
+                    from requests.auth import HTTPBasicAuth as _BA
                     fm = discover_fields(secrets["jira_url"], secrets["email"], secrets["api_token"])
                     st.write("**Campos mapeados:**", fm)
                     tis_ok = df_full["time_in_status"].notna() & (df_full["time_in_status"] != "")
@@ -197,6 +199,14 @@ with st.sidebar:
                     st.write(f"**equipe preenchida:** {(df_full['equipe'] != '').sum()} / {len(df_full)}")
                     if tis_ok.sum() > 0:
                         st.write("**Exemplo TIS:**", df_full.loc[tis_ok, "time_in_status"].iloc[0][:120])
+                    st.write("**Todos os campos custom (para achar team):**")
+                    _r = _req.get(f"{secrets['jira_url']}/rest/api/3/field",
+                                  auth=_BA(secrets["email"], secrets["api_token"]),
+                                  headers={"Accept": "application/json"}, timeout=15)
+                    if _r.ok:
+                        _custom = sorted([f["name"] for f in _r.json() if f.get("custom")],
+                                         key=str.lower)
+                        st.write(_custom)
         except Exception as e:
             st.error(f"Erro na API do Jira:\n{e}")
             df_full = None
