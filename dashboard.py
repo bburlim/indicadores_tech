@@ -52,9 +52,10 @@ CSV_PATH = os.path.join(os.path.dirname(__file__), "data", "jira.csv")
 ACTIVE_STATUS_IDS: Set[str] = {"3", "10180", "10285"}
 DONE_STATUS_IDS: Set[str] = {"10006", "10352"}
 
-# Tipos de item que representam Defeito / História
-DEFEITO_TYPES = {"Bug"}
-HISTORIA_TYPES = {"História", "Historia", "Story"}
+# Tipos de item que representam Defeito / História / Subtarefa
+DEFEITO_TYPES   = {"Bug"}
+HISTORIA_TYPES  = {"História", "Historia", "Story"}
+SUBTAREFA_TYPES = {"Subtarefa", "Sub-task", "Subtask"}
 
 # Origem de defeitos: palavras-chave no resumo/labels para "Cliente"
 ORIGEM_CLIENTE_KEYWORDS = ["cliente", "customer", "externo"]
@@ -187,6 +188,8 @@ def load_csv(path: str) -> pd.DataFrame:
             return "Defeito"
         if t in HISTORIA_TYPES:
             return "História"
+        if t in SUBTAREFA_TYPES:
+            return "Subtarefa"
         return "Outro"
 
     df["tipo_class"] = df.apply(classifica_tipo, axis=1)
@@ -279,7 +282,7 @@ def load_csv(path: str) -> pd.DataFrame:
     def vazao_qualificada(row):
         if row["tipo_class"] == "Defeito":
             return PESO_DEFEITO
-        if row["tipo_class"] == "História":
+        if row["tipo_class"] in ("História", "Subtarefa"):
             ct = row.get("cycle_time", np.nan)
             if pd.isna(ct):
                 return PESO_HISTORIA_4_10_DIAS  # default

@@ -295,8 +295,8 @@ with st.sidebar:
     # Tipo
     tipo_sel = st.multiselect(
         "Tipo de Item",
-        ["Defeito", "História", "Outro"],
-        default=["Defeito", "História"],
+        ["Defeito", "História", "Subtarefa", "Outro"],
+        default=["Defeito", "História", "Subtarefa"],
     )
 
     st.divider()
@@ -474,6 +474,51 @@ with tab_prod:
                     tbl_resp = tbl_resp.rename(columns={"responsavel": "Responsável"})
                     st.markdown("**Vazão Qualificada por Responsável**")
                     st.dataframe(tbl_resp, hide_index=True, use_container_width=True)
+
+    # ── Vazão Qualificada — Subtarefas ───────────────────────────────
+    df_sub = df[df["tipo_class"] == "Subtarefa"]
+    if not df_sub.empty:
+        st.divider()
+        st.subheader("Vazão Qualificada — Subtarefas")
+        st.caption(
+            f"Mesmos pesos de História: ≤1d = **{PESO_HISTORIA_ATE_1_DIA}pt** | "
+            f"1–3d = **{PESO_HISTORIA_1_3_DIAS}pt** | "
+            f"4–10d = **{PESO_HISTORIA_4_10_DIAS}pt** | "
+            f"≥11d = **{PESO_HISTORIA_11_MAIS_DIAS}pt**"
+        )
+
+        vq_def_s  = vazao_qualificada_mensal(df_sub, "Defeito")
+        vq_sub    = vazao_qualificada_mensal(df_sub, "Subtarefa")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.plotly_chart(
+                bar_chart(
+                    "Vazão Qualificada — Subtarefas",
+                    labels,
+                    {"Subtarefa": [vq_sub.get(m, 0) for m in meses]},
+                    stacked=True,
+                ),
+                use_container_width=True,
+            )
+        with c2:
+            vq_equipe_sub = vazao_por_equipe_mensal(df_sub)
+            tbl_s = pivot_table(vq_equipe_sub, meses)
+            if tbl_s is not None:
+                st.markdown("**Vazão Qualificada Subtarefas por Equipe**")
+                st.dataframe(tbl_s, hide_index=True, use_container_width=True)
+            elif "responsavel" in df_sub.columns:
+                sub_r = df_sub[df_sub["concluido"] & df_sub["responsavel"].notna() & (df_sub["responsavel"] != "")]
+                if not sub_r.empty:
+                    piv_r = sub_r.pivot_table(
+                        index="responsavel", columns="mes_resolvido",
+                        values="vazao_qual", aggfunc="sum", fill_value=0,
+                    )
+                    tbl_r = pivot_table(piv_r, meses)
+                    if tbl_r is not None:
+                        tbl_r = tbl_r.rename(columns={"responsavel": "Responsável"})
+                        st.markdown("**Vazão Qualificada Subtarefas por Responsável**")
+                        st.dataframe(tbl_r, hide_index=True, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════

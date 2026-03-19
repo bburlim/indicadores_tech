@@ -298,6 +298,7 @@ def load_from_jira(
         DONE_STATUS_IDS,
         DEFEITO_TYPES,
         HISTORIA_TYPES,
+        SUBTAREFA_TYPES,
         PESO_DEFEITO,
         PESO_HISTORIA_ATE_1_DIA,
         PESO_HISTORIA_1_3_DIAS,
@@ -338,6 +339,8 @@ def load_from_jira(
             return "Defeito"
         if t in HISTORIA_TYPES:
             return "História"
+        if t in SUBTAREFA_TYPES:
+            return "Subtarefa"
         return "Outro"
 
     df["tipo_class"] = df.apply(classifica_tipo, axis=1)
@@ -405,7 +408,7 @@ def load_from_jira(
     def vazao(row):
         if row["tipo_class"] == "Defeito":
             return PESO_DEFEITO
-        if row["tipo_class"] == "História":
+        if row["tipo_class"] in ("História", "Subtarefa"):
             ct = row.get("cycle_time", np.nan)
             if pd.isna(ct):
                 return PESO_HISTORIA_4_10_DIAS
