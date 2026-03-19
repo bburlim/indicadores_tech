@@ -455,8 +455,18 @@ with tab_prod:
         if tbl is not None:
             st.markdown("**Vazão Qualificada por Equipe**")
             st.dataframe(tbl, hide_index=True, use_container_width=True)
-        else:
-            st.info("Dados de equipe não disponíveis (campo Team não preenchido nos issues).")
+        elif "responsavel" in df.columns:
+            sub_resp = df[df["concluido"] & df["responsavel"].notna() & (df["responsavel"] != "")]
+            if not sub_resp.empty:
+                pivot_resp = sub_resp.pivot_table(
+                    index="responsavel", columns="mes_resolvido",
+                    values="vazao_qual", aggfunc="sum", fill_value=0,
+                )
+                tbl_resp = pivot_table(pivot_resp, meses)
+                if tbl_resp is not None:
+                    tbl_resp = tbl_resp.rename(columns={"responsavel": "Responsável"})
+                    st.markdown("**Vazão Qualificada por Responsável**")
+                    st.dataframe(tbl_resp, hide_index=True, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════
