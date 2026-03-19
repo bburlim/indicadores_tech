@@ -37,17 +37,20 @@ CSV_PATH = os.path.join(os.path.dirname(__file__), "data", "jira.csv")
 # Use --dump-status-ids para listar todos os IDs e --map-status-ids para ver
 # a inferência automática. Ajuste conforme necessário para o seu projeto.
 #
-# Mapeamento inferido (projeto Emiteai - Roadmap):
-#   3       → Tarefas pendentes      (espera)
-#   10318   → Pré-backlog / aguardo  (espera)
-#   10284   → Transição rápida       (espera)
-#   10213   → Em andamento           (ATIVO)
-#   10285   → Ag. Code Review        (ATIVO)
-#   10179   → Impedimento Dev        (ATIVO - tempo bloqueado)
-#   10039   → Concluído              (done)
-#   10006   → Pós-conclusão          (done)
-ACTIVE_STATUS_IDS: Set[str] = {"10213", "10285", "10179"}
-DONE_STATUS_IDS: Set[str] = {"10039", "10006"}
+# Mapeamento projeto ERM (Emiteai):
+#   3       → Em andamento           (ATIVO)
+#   10180   → Testando               (ATIVO)
+#   10285   → Ajustando defeito      (ATIVO)
+#   10179   → Ag. Testes             (espera)
+#   10213   → Ag. Code Review        (espera)
+#   10284   → Ag. Ajuste de defeito  (espera)
+#   10318   → Impedimento Dev        (espera/bloqueado)
+#   10319   → Impedimento Testes     (espera/bloqueado)
+#   10039   → Tarefas pendentes      (backlog)
+#   10006   → Concluído              (done)
+#   10352   → Released               (done)
+ACTIVE_STATUS_IDS: Set[str] = {"3", "10180", "10285"}
+DONE_STATUS_IDS: Set[str] = {"10006", "10352"}
 
 # Tipos de item que representam Defeito / História
 DEFEITO_TYPES = {"Bug"}
