@@ -145,7 +145,7 @@ def fetch_issues(
         resp.raise_for_status()
         data = resp.json()
 
-        batch = data.get("issues", [])
+        batch = data.get("issues", data.get("values", []))  # suporte a ambas as keys
         all_issues.extend(batch)
 
         if progress_callback:
@@ -305,10 +305,19 @@ def load_from_jira(
     field_map = discover_fields(jira_url, email, api_token)
     issues    = fetch_issues(jira_url, email, api_token, jql, field_map)
 
-    if not issues:
-        return pd.DataFrame()
-
     df = issues_to_dataframe(issues, field_map)
+
+    if df.empty:
+        # Retorna DF vazio com todas as colunas para evitar KeyError no app
+        return pd.DataFrame(columns=[
+            "key", "resumo", "tipo", "status", "status_cat", "status_cat_changed",
+            "prioridade", "criado_str", "resolvido_str", "actual_start_str",
+            "actual_end_str", "criado", "resolvido", "actual_start", "actual_end",
+            "equipe", "time_in_status", "time_in_status_parsed", "categoria_trabalho",
+            "categoria", "labels", "sprint", "tipo_class", "concluido",
+            "lead_time", "cycle_time", "touch_time_ms", "touch_time_dias",
+            "flow_efficiency", "vazao_qual", "origem", "mes_criado", "mes_resolvido",
+        ])
 
     # ── Aplica as mesmas transformações de dashboard.load_csv ──
 

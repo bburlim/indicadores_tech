@@ -175,8 +175,12 @@ with st.sidebar:
             with st.spinner("Buscando issues do Jira..."):
                 secrets = get_jira_secrets()
                 df_full = load_from_jira(**secrets)
-            fonte = "jira"
-            st.caption(f"📋 {len(df_full)} issues · Jira API")
+            if df_full.empty:
+                st.warning("⚠️ API do Jira conectada, mas nenhum issue retornado. Verifique o JQL nas secrets.")
+                df_full = None
+            else:
+                fonte = "jira"
+                st.caption(f"📋 {len(df_full)} issues · Jira API")
         except Exception as e:
             st.error(f"Erro na API do Jira:\n{e}")
             df_full = None
