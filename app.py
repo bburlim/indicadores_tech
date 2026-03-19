@@ -187,6 +187,16 @@ with st.sidebar:
             else:
                 fonte = "jira"
                 st.caption(f"📋 {len(df_full)} issues · Jira API")
+                with st.expander("🔍 Debug: campos descobertos"):
+                    from jira_api import discover_fields
+                    fm = discover_fields(secrets["jira_url"], secrets["email"], secrets["api_token"])
+                    st.write("**Campos mapeados:**", fm)
+                    tis_ok = df_full["time_in_status"].notna() & (df_full["time_in_status"] != "")
+                    st.write(f"**time_in_status preenchido:** {tis_ok.sum()} / {len(df_full)}")
+                    st.write(f"**cycle_time não-nulo:** {df_full['cycle_time'].notna().sum()} / {len(df_full)}")
+                    st.write(f"**equipe preenchida:** {(df_full['equipe'] != '').sum()} / {len(df_full)}")
+                    if tis_ok.sum() > 0:
+                        st.write("**Exemplo TIS:**", df_full.loc[tis_ok, "time_in_status"].iloc[0][:120])
         except Exception as e:
             st.error(f"Erro na API do Jira:\n{e}")
             df_full = None
