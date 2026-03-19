@@ -199,14 +199,18 @@ with st.sidebar:
                     st.write(f"**equipe preenchida:** {(df_full['equipe'] != '').sum()} / {len(df_full)}")
                     if tis_ok.sum() > 0:
                         st.write("**Exemplo TIS:**", df_full.loc[tis_ok, "time_in_status"].iloc[0][:120])
-                    st.write("**Todos os campos custom (para achar team):**")
-                    _r = _req.get(f"{secrets['jira_url']}/rest/api/3/field",
-                                  auth=_BA(secrets["email"], secrets["api_token"]),
-                                  headers={"Accept": "application/json"}, timeout=15)
-                    if _r.ok:
-                        _custom = sorted([f["name"] for f in _r.json() if f.get("custom")],
-                                         key=str.lower)
-                        st.write(_custom)
+                    st.write("**Status do projeto (ID → Nome):**")
+                    _rs = _req.get(
+                        f"{secrets['jira_url']}/rest/api/3/project/ERM/statuses",
+                        auth=_BA(secrets["email"], secrets["api_token"]),
+                        headers={"Accept": "application/json"}, timeout=15,
+                    )
+                    if _rs.ok:
+                        _seen = {}
+                        for _it in _rs.json():
+                            for _st in _it.get("statuses", []):
+                                _seen[_st["id"]] = _st["name"]
+                        st.write({k: v for k, v in sorted(_seen.items(), key=lambda x: x[1])})
         except Exception as e:
             st.error(f"Erro na API do Jira:\n{e}")
             df_full = None
