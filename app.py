@@ -327,9 +327,16 @@ df = df[mask_periodo]
 if equipe_sel and equipes:
     df = df[df["equipe"].isin(equipe_sel) | df["equipe"].isna() | (df["equipe"] == "")]
 
-# Filtro de responsável
+# Filtro de responsável — inclui sem responsável só quando todos estão selecionados
 if pessoa_sel and "responsavel" in df.columns:
-    df = df[df["responsavel"].isin(pessoa_sel) | df["responsavel"].isna() | (df["responsavel"] == "")]
+    todas_pessoas = sorted(df_full["responsavel"].dropna().unique().tolist())
+    todas_pessoas = [p for p in todas_pessoas if p.strip()]
+    if set(pessoa_sel) == set(todas_pessoas):
+        # seleção completa: inclui issues sem responsável atribuído
+        df = df[df["responsavel"].isin(pessoa_sel) | df["responsavel"].isna() | (df["responsavel"] == "")]
+    else:
+        # seleção parcial: mostra apenas os selecionados
+        df = df[df["responsavel"].isin(pessoa_sel)]
 
 # Filtro de tipo
 if tipo_sel:
