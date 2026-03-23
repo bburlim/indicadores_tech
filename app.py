@@ -49,16 +49,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# ─────────────────────────────────────────────
-# AUTENTICAÇÃO MICROSOFT 365 (opcional)
-# ─────────────────────────────────────────────
-
-_auth_configured = bool(st.secrets.get("auth", {}).get("redirect_uri"))
-if _auth_configured and not st.user.is_logged_in:
-    st.title("📊 Indicadores de Eficiência de Tecnologia")
-    st.info("Faça login com sua conta corporativa para acessar o dashboard.")
-    st.button("🔐 Entrar com Microsoft 365", on_click=st.login, args=("microsoft",))
-    st.stop()
 
 st.markdown("""
 <style>
@@ -164,9 +154,6 @@ from jira_api import (
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2920/2920244.png", width=48)
     st.title("Indicadores Tech")
-    if _auth_configured:
-        st.caption(f"👤 {st.user.name}")
-        st.button("Sair", on_click=st.logout, use_container_width=True)
     st.divider()
 
     # ── Fonte de dados ───────────────────────────────
