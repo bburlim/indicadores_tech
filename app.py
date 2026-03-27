@@ -367,13 +367,16 @@ labels = [label_mes(m) for m in meses]
 st.markdown("""
 <div style="background:#5B5FCF;color:white;text-align:center;
             padding:16px;border-radius:8px;font-size:1.4rem;font-weight:bold;margin-bottom:1.5rem">
-  📊 Indicadores de Eficiência de Tecnologia
+  📊 Indicadores — Tecnologia &amp; Produto
 </div>
 """, unsafe_allow_html=True)
 
-tab_prod, tab_qual, tab_vel = st.tabs([
-    "📦 Produtividade", "🐛 Qualidade", "⏱ Velocidade"
-])
+tab_tech, tab_produto = st.tabs(["💻 Tecnologia", "🎯 Produto"])
+
+with tab_tech:
+    tab_prod, tab_qual, tab_vel = st.tabs([
+        "📦 Produtividade", "🐛 Qualidade", "⏱ Velocidade"
+    ])
 
 # ═══════════════════════════════════════════════
 # ABA PRODUTIVIDADE
@@ -856,3 +859,12 @@ with tab_vel:
                     lambda x: f"{x:.2f}" if pd.notna(x) else "–"
                 )
         st.dataframe(df_show, use_container_width=True, hide_index=True)
+
+
+# ═══════════════════════════════════════════════
+# ABA PRODUTO
+# ═══════════════════════════════════════════════
+
+with tab_produto:
+    st.subheader("Indicadores de Produto")
+    st.info("🚧 Em construção — indicadores de produto serão adicionados aqui.")
