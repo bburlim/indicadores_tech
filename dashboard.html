@@ -6,41 +6,190 @@
   <title>Indicadores de Eficiência de Tecnologia</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', sans-serif; background: #f4f5f7; color: #333; }
-    header {
-      background: #5B5FCF; color: white; text-align: center;
-      padding: 18px; font-size: 1.4rem; font-weight: bold;
-    }
-    .section { padding: 24px; }
-    .section-title {
-      color: #5B5FCF; font-size: 1.15rem; font-weight: bold;
-      margin-bottom: 6px; border-bottom: 2px solid #5B5FCF; padding-bottom: 4px;
-    }
-    .sub-title { font-size: 1rem; color: #444; margin: 16px 0 10px; }
-    .kpi-row { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; }
-    .kpi-card {
-      background: #888; color: white; border-radius: 10px;
-      padding: 18px 24px; min-width: 150px; text-align: center;
-    }
-    .kpi-card.kpi-bad { background: #c0392b; }
-    .kpi-card.kpi-ok { background: #27ae60; }
-    .kpi-value { font-size: 1.6rem; font-weight: bold; }
-    .kpi-label { font-size: 0.8rem; margin-top: 4px; }
-    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
-    .chart-grid.single { grid-template-columns: 1fr; }
-    .chart-box { background: white; border-radius: 8px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-    .table-wrap { background: white; border-radius: 8px; padding: 16px; margin: 16px 0;
-                   box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }
-    .table-wrap h4 { margin-bottom: 10px; color: #5B5FCF; }
-    .data-table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
-    .data-table th { background: #5B5FCF; color: white; padding: 6px 10px; text-align: left; }
-    .data-table td { padding: 5px 10px; border-bottom: 1px solid #eee; }
-    .data-table tr:hover td { background: #f0f0ff; }
-    .legend-box { background: white; border-radius: 8px; padding: 16px; margin: 16px 0;
-                   box-shadow: 0 1px 4px rgba(0,0,0,.08); font-size: 0.88rem; line-height: 1.6; }
-    .legend-box b { color: #5B5FCF; }
-    hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+    :root {
+  /* Paleta Base / Emiteaí */
+  --cor-primaria: rgb(75, 75, 129);
+  --cor-destaque: rgb(237, 109, 162);
+  --cor-fundo: rgb(235, 237, 239);
+  
+  /* Cores de Apoio */
+  --cor-texto: #333333;
+  --cor-texto-mutado: #555555;
+  --bg-cards: #ffffff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { 
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+  background: var(--cor-fundo); 
+  color: var(--cor-texto); 
+}
+
+/* Cabeçalho Principal */
+header {
+  background: var(--cor-primaria); 
+  color: white; 
+  text-align: center;
+  padding: 24px 20px; 
+  font-size: 1.6rem; 
+  font-weight: 600;
+  border-bottom: 4px solid var(--cor-destaque);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.section { 
+  padding: 32px; 
+  max-width: 1400px; 
+  margin: 0 auto; 
+}
+
+/* Títulos das Seções */
+.section-title {
+  color: var(--cor-primaria); 
+  font-size: 1.4rem; 
+  font-weight: 700;
+  margin-bottom: 8px; 
+  border-bottom: 2px solid var(--cor-destaque); 
+  padding-bottom: 8px;
+}
+
+.sub-title { 
+  font-size: 1.1rem; 
+  color: var(--cor-texto-mutado); 
+  margin: 24px 0 16px; 
+  font-weight: 500;
+}
+
+/* Cards de KPI */
+.kpi-row { 
+  display: flex; 
+  gap: 20px; 
+  flex-wrap: wrap; 
+  margin: 20px 0; 
+}
+
+.kpi-card {
+  background: var(--bg-cards); 
+  color: var(--cor-primaria);
+  border-radius: 8px;
+  padding: 24px; 
+  min-width: 180px; 
+  text-align: center;
+  flex: 1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  border-bottom: 4px solid var(--cor-primaria);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+}
+
+/* Cores semânticas mantidas, mas aplicadas na borda para não quebrar a paleta */
+.kpi-card.kpi-bad { border-bottom-color: #e74c3c; }
+.kpi-card.kpi-ok { border-bottom-color: #2ecc71; }
+
+.kpi-value { 
+  font-size: 2.2rem; 
+  font-weight: 800; 
+  color: var(--cor-primaria);
+}
+
+.kpi-label { 
+  font-size: 0.85rem; 
+  margin-top: 8px; 
+  color: var(--cor-texto-mutado);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Grids e Box dos Gráficos */
+.chart-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); 
+  gap: 24px; 
+  margin: 24px 0; 
+}
+.chart-grid.single { grid-template-columns: 1fr; }
+
+.chart-box { 
+  background: var(--bg-cards); 
+  border-radius: 8px; 
+  padding: 16px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04); 
+  border-top: 4px solid var(--cor-destaque);
+}
+
+/* Tabelas */
+.table-wrap { 
+  background: var(--bg-cards); 
+  border-radius: 8px; 
+  padding: 24px; 
+  margin: 24px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04); 
+  overflow-x: auto; 
+}
+
+.table-wrap h4 { 
+  margin-bottom: 16px; 
+  color: var(--cor-primaria); 
+  font-size: 1.1rem;
+}
+
+.data-table { 
+  border-collapse: collapse; 
+  width: 100%; 
+  font-size: 0.9rem; 
+}
+
+.data-table th { 
+  background: var(--cor-primaria); 
+  color: white; 
+  padding: 12px 16px; 
+  text-align: left; 
+  font-weight: 600;
+}
+
+.data-table td { 
+  padding: 10px 16px; 
+  border-bottom: 1px solid #eaeaea; 
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Efeito hover usando uma versão muito transparente do rosa de destaque */
+.data-table tr:hover td { 
+  background: rgba(237, 109, 162, 0.08); 
+}
+
+/* Caixas de Legenda */
+.legend-box { 
+  background: var(--bg-cards); 
+  border-left: 4px solid var(--cor-destaque);
+  border-radius: 0 8px 8px 0; 
+  padding: 16px 20px; 
+  margin: 20px 0; 
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+  font-size: 0.95rem; 
+  line-height: 1.6; 
+  color: var(--cor-texto-mutado);
+}
+
+.legend-box b { 
+  color: var(--cor-primaria); 
+}
+
+hr { 
+  border: none; 
+  border-top: 2px dashed #d1d5db; 
+  margin: 40px auto; 
+  max-width: 1400px;
+}
   </style>
 </head>
 <body>
