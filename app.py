@@ -61,6 +61,37 @@ st.markdown("""
   .metric-card .val { font-size: 2rem; font-weight: bold; }
   .metric-card .lbl { font-size: 0.8rem; margin-top: 2px; opacity: .85; }
   .section-divider { border-top: 3px solid #5B5FCF; margin: 2rem 0 1rem; }
+
+  /* ── Tabs principais ── */
+  div[data-baseweb="tab-list"] {
+    gap: 6px;
+    background: #f0f2f6;
+    padding: 4px 6px;
+    border-radius: 12px;
+    border-bottom: none !important;
+  }
+  button[data-baseweb="tab"] {
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #5e6c84;
+    background: transparent;
+    border: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  button[data-baseweb="tab"]:hover {
+    background: #e2e5ee;
+    color: #3d4560;
+  }
+  button[data-baseweb="tab"][aria-selected="true"] {
+    background: #5B5FCF !important;
+    color: white !important;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(91,95,207,0.35);
+  }
+  div[data-baseweb="tab-highlight"] { display: none; }
+  div[data-baseweb="tab-border"]    { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
