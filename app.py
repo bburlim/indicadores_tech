@@ -869,31 +869,38 @@ with tab_produto:
     st.subheader("% Completude dos Épicos")
     st.caption("Proporção de itens filhos concluídos em relação ao total de itens de cada épico.")
 
-    epicos = df_full[df_full["tipo"].str.lower().str.contains("epic|épico", na=False)]
-
-    if epicos.empty or "parent_key" not in df_full.columns:
+    if "parent_key" not in df_full.columns:
         st.info("Nenhum épico encontrado nos dados retornados do Jira.")
     else:
+        # Agrupa os filhos pelo épico pai (parent_key preenchido e parent_type = Epic/Épico)
         filhos = df_full[
             df_full["parent_key"].notna() & (df_full["parent_key"] != "") &
-            ~df_full["tipo"].str.lower().str.contains("epic|épico", na=False)
+            df_full["parent_type"].str.lower().str.contains("epic|épico", na=False)
+        ] if "parent_type" in df_full.columns else df_full[
+            df_full["parent_key"].notna() & (df_full["parent_key"] != "")
         ]
 
+        # Monta título do épico: usa parent_summary se disponível
+        epic_titles = {}
+        if "parent_summary" in df_full.columns:
+            for key, grp in filhos.groupby("parent_key"):
+                summary = grp["parent_summary"].iloc[0]
+                epic_titles[key] = summary if summary else key
+
         rows_comp = []
-        for _, epic in epicos.iterrows():
-            children = filhos[filhos["parent_key"] == epic["key"]]
-            total = len(children)
-            done  = int(children["concluido"].sum()) if total > 0 else 0
-            pct   = round(done / total * 100, 1) if total > 0 else 0.0
-            titulo = epic["resumo"]
+        for epic_key, grp in filhos.groupby("parent_key"):
+            total = len(grp)
+            done  = int(grp["concluido"].sum())
+            pct   = round(done / total * 100, 1)
+            titulo = epic_titles.get(epic_key, epic_key)
             if len(titulo) > 55:
                 titulo = titulo[:52] + "..."
             rows_comp.append({
-                "key":        epic["key"],
-                "Épico":      titulo,
-                "Total":      total,
-                "Concluídos": done,
-                "Pendentes":  total - done,
+                "key":          epic_key,
+                "Épico":        titulo,
+                "Total":        total,
+                "Concluídos":   done,
+                "Pendentes":    total - done,
                 "% Completude": pct,
             })
 
