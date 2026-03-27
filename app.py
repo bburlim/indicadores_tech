@@ -64,20 +64,12 @@ st.markdown("""
 
   /* ── KPI Cards ── */
   .metric-card {
-    background: linear-gradient(135deg, #272949 0%, #1a1b30 100%);
-    color: white;
-    border-radius: 12px;
-    padding: 18px 20px;
-    text-align: center;
-    box-shadow: 0 4px 15px rgba(39,41,73,0.3);
+    background: #5B5FCF; color: white; border-radius: 10px;
+    padding: 16px 20px; text-align: center;
   }
-  .metric-card .val { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
-  .metric-card .lbl { font-size: 0.78rem; margin-top: 4px; opacity: .88; font-weight: 500; }
-  .section-divider {
-    border: none;
-    border-top: 2px solid #9092C4;
-    margin: 2rem 0 1rem;
-  }
+  .metric-card .val { font-size: 2rem; font-weight: bold; }
+  .metric-card .lbl { font-size: 0.8rem; margin-top: 2px; opacity: .85; }
+  .section-divider { border-top: 3px solid #5B5FCF; margin: 2rem 0 1rem; }
 
   /* ── Sub-tabs (st.tabs) ── */
   div[data-baseweb="tab-list"] {
@@ -166,7 +158,7 @@ st.markdown("""
 
 HEIGHT = 380
 
-def kpi(label: str, value: str, delta: str = "", color: str = "#272949"):
+def kpi(label: str, value: str, delta: str = "", color: str = "#5B5FCF"):
     st.markdown(f"""
     <div class="metric-card" style="background:{color}">
       <div class="val">{value}</div>
