@@ -64,25 +64,25 @@ st.markdown("""
 
   /* ── KPI Cards ── */
   .metric-card {
-    background: linear-gradient(135deg, #FF69AC 0%, #e0478f 100%);
+    background: linear-gradient(135deg, #272949 0%, #1a1b30 100%);
     color: white;
     border-radius: 12px;
     padding: 18px 20px;
     text-align: center;
-    box-shadow: 0 4px 15px rgba(255,105,172,0.3);
+    box-shadow: 0 4px 15px rgba(39,41,73,0.3);
   }
   .metric-card .val { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
   .metric-card .lbl { font-size: 0.78rem; margin-top: 4px; opacity: .88; font-weight: 500; }
   .section-divider {
     border: none;
-    border-top: 2px solid #FFB3D5;
+    border-top: 2px solid #9092C4;
     margin: 2rem 0 1rem;
   }
 
   /* ── Sub-tabs (st.tabs) ── */
   div[data-baseweb="tab-list"] {
     gap: 6px;
-    background: #FFF0F6;
+    background: #EEEEF8;
     padding: 4px 6px;
     border-radius: 12px;
     border-bottom: none !important;
@@ -92,34 +92,34 @@ st.markdown("""
     padding: 8px 20px;
     font-size: 0.88rem;
     font-weight: 500;
-    color: #8A4060;
+    color: #3D3F6E;
     background: transparent;
     border: none;
     font-family: 'Poppins', sans-serif !important;
     transition: background 0.2s, color 0.2s;
   }
   button[data-baseweb="tab"]:hover {
-    background: #FFD6EB;
-    color: #C2185B;
+    background: #D8D9F0;
+    color: #1a1b5e;
   }
   button[data-baseweb="tab"][aria-selected="true"] {
-    background: #FF69AC !important;
+    background: #272949 !important;
     color: white !important;
     font-weight: 600;
-    box-shadow: 0 2px 8px rgba(255,105,172,0.4);
+    box-shadow: 0 2px 8px rgba(39,41,73,0.35);
   }
   div[data-baseweb="tab-highlight"] { display: none; }
   div[data-baseweb="tab-border"]    { display: none; }
 
   /* ── Sidebar ── */
   [data-testid="stSidebar"] {
-    background: #1A0A14 !important;
+    background: #1a1b30 !important;
   }
   [data-testid="stSidebar"] * {
-    color: #F8D7EA !important;
+    color: #E8E9F8 !important;
   }
   [data-testid="stSidebar"] .stButton > button {
-    background: #FF69AC !important;
+    background: #272949 !important;
     color: white !important;
     border: none !important;
     border-radius: 8px !important;
@@ -127,26 +127,26 @@ st.markdown("""
     font-weight: 600 !important;
   }
   [data-testid="stSidebar"] .stButton > button:hover {
-    background: #e0478f !important;
+    background: #1a1b5e !important;
   }
   [data-testid="stSidebar"] [data-baseweb="select"] > div {
-    background: #2D0F22 !important;
-    border-color: #FF69AC !important;
-    color: #F8D7EA !important;
+    background: #1e1f42 !important;
+    border-color: #272949 !important;
+    color: #E8E9F8 !important;
   }
   [data-testid="stSidebar"] label {
-    color: #FFB3D5 !important;
+    color: #9092C4 !important;
     font-size: 0.82rem !important;
     font-weight: 500 !important;
   }
   [data-testid="stSidebar"] hr {
-    border-color: #4A1A32 !important;
+    border-color: #2e2f5a !important;
   }
   [data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] {
-    background: #FF69AC !important;
+    background: #272949 !important;
   }
   [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
-    color: #FF69AC !important;
+    color: #9092C4 !important;
     font-weight: 500 !important;
   }
 
@@ -154,9 +154,9 @@ st.markdown("""
   h1, h2, h3 {
     font-family: 'Poppins', sans-serif !important;
     font-weight: 700 !important;
-    color: #1A0A14 !important;
+    color: #272949 !important;
   }
-  .stSubheader { color: #C2185B !important; }
+  .stSubheader { color: #272949 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -166,7 +166,7 @@ st.markdown("""
 
 HEIGHT = 380
 
-def kpi(label: str, value: str, delta: str = "", color: str = "#FF69AC"):
+def kpi(label: str, value: str, delta: str = "", color: str = "#272949"):
     st.markdown(f"""
     <div class="metric-card" style="background:{color}">
       <div class="val">{value}</div>
@@ -252,10 +252,10 @@ with st.sidebar:
     st.markdown("""
     <div style="text-align:center;padding:8px 0 4px">
       <div style="font-size:2rem">📊</div>
-      <div style="font-size:1.05rem;font-weight:700;color:#FF69AC;font-family:Poppins,sans-serif;letter-spacing:-0.3px">
+      <div style="font-size:1.05rem;font-weight:700;color:#9092C4;font-family:Poppins,sans-serif;letter-spacing:-0.3px">
         Indicadores Tech
       </div>
-      <div style="font-size:0.7rem;color:#FF9DC8;letter-spacing:2px;text-transform:uppercase;margin-top:2px">
+      <div style="font-size:0.7rem;color:#9092C4;letter-spacing:2px;text-transform:uppercase;margin-top:2px">
         emiteai
       </div>
     </div>
@@ -472,7 +472,7 @@ labels = [label_mes(m) for m in meses]
 
 st.markdown("""
 <div style="
-  background: linear-gradient(135deg, #1A0A14 0%, #3D0A24 60%, #6B0F3A 100%);
+  background: linear-gradient(135deg, #0d0e1a 0%, #1a1b30 50%, #272949 100%);
   color: white;
   text-align: center;
   padding: 20px 24px;
@@ -499,16 +499,16 @@ nav_main = option_menu(
     default_index=0,
     orientation="horizontal",
     styles={
-        "container": {"padding": "4px 6px", "background-color": "#FFF0F6", "border-radius": "12px"},
-        "icon": {"color": "#8A4060", "font-size": "0.9rem"},
+        "container": {"padding": "4px 6px", "background-color": "#EEEEF8", "border-radius": "12px"},
+        "icon": {"color": "#3D3F6E", "font-size": "0.9rem"},
         "nav-link": {
-            "font-size": "0.9rem", "font-weight": "500", "color": "#8A4060",
+            "font-size": "0.9rem", "font-weight": "500", "color": "#3D3F6E",
             "border-radius": "8px", "padding": "8px 24px",
-            "--hover-color": "#FFD6EB", "font-family": "Poppins, sans-serif",
+            "--hover-color": "#D8D9F0", "font-family": "Poppins, sans-serif",
         },
         "nav-link-selected": {
-            "background-color": "#FF69AC", "color": "white",
-            "font-weight": "600", "box-shadow": "0 2px 8px rgba(255,105,172,0.4)",
+            "background-color": "#272949", "color": "white",
+            "font-weight": "600", "box-shadow": "0 2px 8px rgba(39,41,73,0.35)",
         },
     },
     key="nav_main",

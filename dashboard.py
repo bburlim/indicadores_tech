@@ -500,21 +500,21 @@ def vazao_por_equipe_mensal(df: pd.DataFrame) -> pd.DataFrame:
 
 COLORS = {
     "abertura": "#FF8C42",       # laranja — itens abertos
-    "entregue": "#FF69AC",       # rosa emiteai — entregues
-    "defeito": "#C2185B",        # rosa escuro — defeitos
+    "entregue": "#272949",       # azul emiteai — entregues
+    "defeito": "#C2185B",        # vermelho-rosa — defeitos
     "historia": "#00BCD4",       # ciano — histórias
-    "backlog": "#FF69AC",        # rosa emiteai
-    "lead_time": "#880E4F",      # vinho — lead time
+    "backlog": "#272949",        # azul emiteai
+    "lead_time": "#272949",      # azul emiteai — lead time
     "cycle_time": "#00897B",     # verde-azulado — cycle time
-    "desvio_lt": "#FF69AC",      # rosa emiteai
-    "desvio_ct": "#1A0A14",      # escuro
-    "fluxo": "#F48FB1",          # rosa claro — fluxo
+    "desvio_lt": "#272949",      # azul emiteai
+    "desvio_ct": "#9092C4",      # azul médio
+    "fluxo": "#7B8FD4",          # azul claro — fluxo
     "fluxo_bench": "#00BFA5",    # verde-água — benchmark fluxo
-    "bench_line": "#FF69AC",     # rosa emiteai — linha de benchmark
+    "bench_line": "#272949",     # azul emiteai — linha de benchmark
     "sla_nao": "#FF8C42",        # laranja — SLA não atendido
-    "saude": "#FF69AC",          # rosa emiteai
+    "saude": "#272949",          # azul emiteai
     "retrabalho": "#FFB74D",     # âmbar — retrabalho
-    "bench_rework": "#FF69AC",   # rosa emiteai — benchmark rework
+    "bench_rework": "#272949",   # azul emiteai — benchmark rework
 }
 
 TEMPLATE = "plotly_white"
