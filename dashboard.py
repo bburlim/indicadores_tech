@@ -499,22 +499,22 @@ def vazao_por_equipe_mensal(df: pd.DataFrame) -> pd.DataFrame:
 # ─────────────────────────────────────────────
 
 COLORS = {
-    "abertura": "#FF8C42",       # laranja — itens abertos
-    "entregue": "#272949",       # azul emiteai — entregues
-    "defeito": "#C2185B",        # vermelho-rosa — defeitos
-    "historia": "#00BCD4",       # ciano — histórias
-    "backlog": "#272949",        # azul emiteai
-    "lead_time": "#272949",      # azul emiteai — lead time
-    "cycle_time": "#00897B",     # verde-azulado — cycle time
-    "desvio_lt": "#272949",      # azul emiteai
-    "desvio_ct": "#9092C4",      # azul médio
-    "fluxo": "#7B8FD4",          # azul claro — fluxo
-    "fluxo_bench": "#00BFA5",    # verde-água — benchmark fluxo
-    "bench_line": "#272949",     # azul emiteai — linha de benchmark
-    "sla_nao": "#FF8C42",        # laranja — SLA não atendido
-    "saude": "#272949",          # azul emiteai
-    "retrabalho": "#FFB74D",     # âmbar — retrabalho
-    "bench_rework": "#272949",   # azul emiteai — benchmark rework
+    "abertura": "#FFA500",
+    "entregue": "#7B7FBF",
+    "defeito": "#9B3D5C",
+    "historia": "#5BC8D9",
+    "backlog": "#7B7FBF",
+    "lead_time": "#3B3FA0",
+    "cycle_time": "#2E9E6E",
+    "desvio_lt": "#7B7FBF",
+    "desvio_ct": "#222222",
+    "fluxo": "#9090E8",
+    "fluxo_bench": "#00CC99",
+    "bench_line": "#8888FF",
+    "sla_nao": "#FFA500",
+    "saude": "#7B7FBF",
+    "retrabalho": "#FFA07A",
+    "bench_rework": "#8888FF",
 }
 
 TEMPLATE = "plotly_white"
