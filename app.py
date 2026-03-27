@@ -4,6 +4,7 @@ Lê CSV exportado do Jira e exibe o dashboard interativo com filtros.
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -1071,22 +1072,25 @@ with tab_produto:
                 """
 
                 rows_html = ""
-                row_num = 1
+                row_num   = 1
+                total_rows = 0  # para calcular altura do componente
                 for obj_key, obj_data in sorted(obj_map.items()):
                     epics    = obj_data["epics"]
                     obj_tot  = sum(e["total"]       for e in epics)
                     obj_done = sum(e["done"]         for e in epics)
                     obj_prog = sum(e["in_progress"]  for e in epics)
                     obj_todo = obj_tot - obj_done - obj_prog
+                    grp_id   = f"grp{row_num}"
 
                     obj_title = obj_data["summary"]
                     if len(obj_title) > 65:
                         obj_title = obj_title[:62] + "…"
 
                     rows_html += f"""
-                    <tr class="row-obj">
+                    <tr class="row-obj" onclick="toggleGroup('{grp_id}')" style="cursor:pointer">
                       <td class="num">{row_num}</td>
                       <td>
+                        <span id="arrow-{grp_id}" class="arrow">▼</span>
                         <span class="bk-icon"></span>
                         <span class="ik">{obj_key}</span>
                         &nbsp; {obj_title}
@@ -1097,7 +1101,8 @@ with tab_produto:
                       <td class="cnt">○ {obj_todo}</td>
                       <td><span class="pri">≡</span></td>
                     </tr>"""
-                    row_num += 1
+                    row_num   += 1
+                    total_rows += 1
 
                     for epic in sorted(epics, key=lambda x: x["done"] / x["total"] if x["total"] else 0, reverse=True):
                         ep_title = epic["summary"]
@@ -1106,7 +1111,7 @@ with tab_produto:
                         ep_todo = epic["total"] - epic["done"] - epic["in_progress"]
 
                         rows_html += f"""
-                        <tr class="row-epic">
+                        <tr class="row-epic {grp_id}">
                           <td></td>
                           <td>
                             <span class="lt-icon">⚡</span>
@@ -1119,6 +1124,19 @@ with tab_produto:
                           <td class="cnt">○ {ep_todo}</td>
                           <td><span class="pri">≡</span></td>
                         </tr>"""
+                        total_rows += 1
+
+                JS = """
+                <script>
+                function toggleGroup(id) {
+                  const rows  = document.querySelectorAll('tr.' + id);
+                  const arrow = document.getElementById('arrow-' + id);
+                  const hidden = rows.length > 0 && rows[0].style.display === 'none';
+                  rows.forEach(r => r.style.display = hidden ? '' : 'none');
+                  if (arrow) arrow.textContent = hidden ? '▼' : '▶';
+                }
+                </script>
+                """
 
                 table_html = f"""
                 {CSS}
@@ -1136,5 +1154,15 @@ with tab_produto:
                   </thead>
                   <tbody>{rows_html}</tbody>
                 </table>
+                {JS}
                 """
-                st.markdown(table_html, unsafe_allow_html=True)
+
+                # CSS extra para a seta
+                st.markdown("""
+                <style>
+                  .arrow { font-size:10px; color:#5e6c84; margin-right:6px;
+                           display:inline-block; width:10px; }
+                </style>""", unsafe_allow_html=True)
+
+                height_px = 50 + total_rows * 44
+                components.html(table_html, height=height_px, scrolling=False)
