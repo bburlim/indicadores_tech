@@ -983,71 +983,158 @@ with tab_produto:
             if df_epics.empty or "parent_key" not in df_epics.columns:
                 st.info("Objetivos não encontrados. Verifique se os épicos possuem um item pai no Jira.")
             else:
-                # Qtd de issues (filhos) por épico
+                # ── Dados por épico (done + in_progress + todo) ──────────────
                 filhos_por_epico: dict = {}
                 for epic_key, grp in df_full.groupby("parent_key"):
-                    if epic_key:
-                        filhos_por_epico[epic_key] = {
-                            "total": len(grp),
-                            "done":  int(grp["concluido"].sum()),
-                        }
+                    if not epic_key:
+                        continue
+                    done_n = int(grp["concluido"].sum())
+                    prog_n = int(
+                        grp["status_cat"]
+                        .str.contains("Em andamento|In Progress", case=False, na=False)
+                        .sum()
+                    )
+                    filhos_por_epico[epic_key] = {
+                        "total":       len(grp),
+                        "done":        done_n,
+                        "in_progress": prog_n,
+                    }
 
-                # Agrupa épicos por objetivo
+                # ── Agrupa épicos por objetivo ────────────────────────────────
                 obj_map: dict = {}
                 for _, er in df_epics.iterrows():
                     obj_key     = er.get("parent_key") or "Sem Objetivo"
                     obj_summary = er.get("parent_summary") or obj_key
                     obj_map.setdefault(obj_key, {"summary": obj_summary, "epics": []})
 
-                    ep_filhos = filhos_por_epico.get(er["key"], {"total": 0, "done": 0})
-                    ep_pct    = round(ep_filhos["done"] / ep_filhos["total"] * 100, 1) \
-                                if ep_filhos["total"] > 0 else 0.0
+                    ep = filhos_por_epico.get(er["key"], {"total": 0, "done": 0, "in_progress": 0})
                     obj_map[obj_key]["epics"].append({
-                        "key":     er["key"],
-                        "summary": er.get("summary", er["key"]),
-                        "total":   ep_filhos["total"],
-                        "done":    ep_filhos["done"],
-                        "pct":     ep_pct,
+                        "key":         er["key"],
+                        "summary":     er.get("summary", er["key"]),
+                        "total":       ep["total"],
+                        "done":        ep["done"],
+                        "in_progress": ep["in_progress"],
                     })
 
-                # KPIs
+                # ── KPIs ──────────────────────────────────────────────────────
                 total_obj    = len(obj_map)
                 epics_linked = sum(len(v["epics"]) for v in obj_map.values())
                 c1, c2 = st.columns(2)
                 with c1: kpi("Total de Objetivos", str(total_obj))
                 with c2: kpi("Épicos Vinculados",  str(epics_linked))
 
-                st.markdown("")
+                st.markdown("<br>", unsafe_allow_html=True)
 
-                # Árvore Objetivo → Épico
+                # ── Helper: barra tricolor ────────────────────────────────────
+                def _prog_bar_html(done: int, in_prog: int, total: int) -> str:
+                    if total == 0:
+                        return '<div class="pb-wrap"></div>'
+                    d = done   / total * 100
+                    p = in_prog / total * 100
+                    return (
+                        f'<div class="pb-wrap">'
+                        f'<div class="pb-done" style="width:{d:.1f}%"></div>'
+                        f'<div class="pb-prog" style="width:{p:.1f}%"></div>'
+                        f'</div>'
+                    )
+
+                # ── HTML da tabela ────────────────────────────────────────────
+                CSS = """
+                <style>
+                .rt { width:100%; border-collapse:collapse;
+                      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+                      font-size:13px; }
+                .rt th { text-align:left; padding:8px 14px; border-bottom:2px solid #dfe1e6;
+                         color:#5e6c84; font-weight:600; font-size:11px; text-transform:uppercase;
+                         letter-spacing:.04em; white-space:nowrap; }
+                .rt td { padding:9px 14px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+                .rt tr:last-child td { border-bottom:none; }
+                .row-obj td { background:#f4f5f7; font-weight:600; }
+                .row-epic td { background:#ffffff; }
+                .row-epic td:nth-child(2) { padding-left:36px; }
+                .pb-wrap { display:flex; height:8px; border-radius:4px; overflow:hidden;
+                           width:150px; background:#dfe1e6; }
+                .pb-done { background:#5aac44; flex-shrink:0; }
+                .pb-prog { background:#0052cc; flex-shrink:0; }
+                .ik { color:#0052cc; font-weight:600; font-size:12px; }
+                .bk-icon { display:inline-block; width:14px; height:14px;
+                           background:#00B8A3; border-radius:2px; margin-right:6px;
+                           vertical-align:middle; position:relative; }
+                .bk-icon::after { content:''; position:absolute; bottom:2px; left:2px; right:2px;
+                                  height:3px; background:white; border-radius:1px; }
+                .lt-icon { display:inline-block; color:#6554C0; margin-right:6px;
+                           font-size:13px; vertical-align:middle; }
+                .cnt { color:#5e6c84; font-size:12px; }
+                .pri { color:#F79233; font-size:15px; font-weight:900; vertical-align:middle; }
+                .num { color:#97a0af; font-size:12px; }
+                </style>
+                """
+
+                rows_html = ""
+                row_num = 1
                 for obj_key, obj_data in sorted(obj_map.items()):
                     epics    = obj_data["epics"]
-                    obj_tot  = sum(e["total"] for e in epics)
-                    obj_done = sum(e["done"]  for e in epics)
-                    obj_pct  = round(obj_done / obj_tot * 100, 1) if obj_tot > 0 else 0.0
+                    obj_tot  = sum(e["total"]       for e in epics)
+                    obj_done = sum(e["done"]         for e in epics)
+                    obj_prog = sum(e["in_progress"]  for e in epics)
+                    obj_todo = obj_tot - obj_done - obj_prog
 
                     obj_title = obj_data["summary"]
-                    if len(obj_title) > 60:
-                        obj_title = obj_title[:57] + "..."
+                    if len(obj_title) > 65:
+                        obj_title = obj_title[:62] + "…"
 
-                    header = (
-                        f"📌 **{obj_key}** — {obj_title}"
-                        f"&nbsp;&nbsp;&nbsp;`{obj_pct:.0f}%` ({obj_done}/{obj_tot} itens)"
-                    )
-                    with st.expander(f"📌 {obj_key} — {obj_title}  |  {obj_pct:.0f}% ({obj_done}/{obj_tot})", expanded=True):
-                        st.progress(obj_pct / 100)
-                        st.markdown("")
-                        for epic in sorted(epics, key=lambda x: x["pct"], reverse=True):
-                            ep_title = epic["summary"]
-                            if len(ep_title) > 60:
-                                ep_title = ep_title[:57] + "..."
+                    rows_html += f"""
+                    <tr class="row-obj">
+                      <td class="num">{row_num}</td>
+                      <td>
+                        <span class="bk-icon"></span>
+                        <span class="ik">{obj_key}</span>
+                        &nbsp; {obj_title}
+                      </td>
+                      <td>{_prog_bar_html(obj_done, obj_prog, obj_tot)}</td>
+                      <td class="cnt" style="color:#5aac44">✓ {obj_done}</td>
+                      <td class="cnt" style="color:#0052cc">◑ {obj_prog}</td>
+                      <td class="cnt">○ {obj_todo}</td>
+                      <td><span class="pri">≡</span></td>
+                    </tr>"""
+                    row_num += 1
 
-                            col_ico, col_title, col_bar, col_num = st.columns([0.4, 4, 3, 1.5])
-                            with col_ico:
-                                st.markdown("⚡")
-                            with col_title:
-                                st.markdown(f"**{epic['key']}** &nbsp; {ep_title}")
-                            with col_bar:
-                                st.progress(epic["pct"] / 100)
-                            with col_num:
-                                st.caption(f"{epic['pct']:.0f}% &nbsp;({epic['done']}/{epic['total']})")
+                    for epic in sorted(epics, key=lambda x: x["done"] / x["total"] if x["total"] else 0, reverse=True):
+                        ep_title = epic["summary"]
+                        if len(ep_title) > 65:
+                            ep_title = ep_title[:62] + "…"
+                        ep_todo = epic["total"] - epic["done"] - epic["in_progress"]
+
+                        rows_html += f"""
+                        <tr class="row-epic">
+                          <td></td>
+                          <td>
+                            <span class="lt-icon">⚡</span>
+                            <span class="ik">{epic["key"]}</span>
+                            &nbsp; {ep_title}
+                          </td>
+                          <td>{_prog_bar_html(epic["done"], epic["in_progress"], epic["total"])}</td>
+                          <td class="cnt" style="color:#5aac44">✓ {epic["done"]}</td>
+                          <td class="cnt" style="color:#0052cc">◑ {epic["in_progress"]}</td>
+                          <td class="cnt">○ {ep_todo}</td>
+                          <td><span class="pri">≡</span></td>
+                        </tr>"""
+
+                table_html = f"""
+                {CSS}
+                <table class="rt">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Ticket</th>
+                      <th>Progresso</th>
+                      <th>Concluídos</th>
+                      <th>Em andamento</th>
+                      <th>Pendentes</th>
+                      <th>Prioridade</th>
+                    </tr>
+                  </thead>
+                  <tbody>{rows_html}</tbody>
+                </table>
+                """
+                st.markdown(table_html, unsafe_allow_html=True)
