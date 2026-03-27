@@ -867,8 +867,8 @@ with tab_vel:
 # ═══════════════════════════════════════════════
 
 with tab_produto:
-    st.subheader("% Completude dos Épicos")
-    st.caption("Proporção de itens filhos concluídos em relação ao total de itens de cada épico.")
+    st.subheader("Visão por Objetivo")
+    st.caption("Épicos agrupados pelo objetivo pai, com progresso calculado a partir dos itens filhos.")
 
     if "parent_key" not in df_full.columns:
         st.info("Nenhum épico encontrado nos dados retornados do Jira.")
@@ -957,11 +957,6 @@ with tab_produto:
             df_tbl = df_tbl.rename(columns={"key": "Código"}).sort_values("% Completude", ascending=False)
             st.dataframe(df_tbl, hide_index=True, use_container_width=True)
 
-    # ── Visão por Objetivo ───────────────────────────────────────────
-    st.divider()
-    st.subheader("Visão por Objetivo")
-    st.caption("Épicos agrupados pelo objetivo pai, com progresso calculado a partir dos itens filhos.")
-
     if "parent_key" not in df_full.columns or not jira_secrets_configured():
         st.info("Dados insuficientes para montar a visão por objetivo.")
     else:
@@ -1020,9 +1015,19 @@ with tab_produto:
                 # ── KPIs ──────────────────────────────────────────────────────
                 total_obj    = len(obj_map)
                 epics_linked = sum(len(v["epics"]) for v in obj_map.values())
-                c1, c2 = st.columns(2)
+
+                _obj_pcts = []
+                for _od in obj_map.values():
+                    _tot = sum(e["total"] for e in _od["epics"])
+                    _don = sum(e["done"]  for e in _od["epics"])
+                    _obj_pcts.append(_don / _tot * 100 if _tot else 0.0)
+                completude_media_obj = round(sum(_obj_pcts) / len(_obj_pcts), 1) if _obj_pcts else 0.0
+                obj_completos = sum(1 for p in _obj_pcts if p == 100)
+
+                c1, c2, c3 = st.columns(3)
                 with c1: kpi("Total de Objetivos", str(total_obj))
-                with c2: kpi("Épicos Vinculados",  str(epics_linked))
+                with c2: kpi("Objetivos 100% concluídos", str(obj_completos), color="#27ae60")
+                with c3: kpi("Completude Média dos Objetivos", f"{completude_media_obj}%")
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1288,3 +1293,82 @@ with tab_produto:
 
                 height_px = 55 + total_rows * 44
                 components.html(table_html, height=height_px, scrolling=False)
+
+    # ── % Completude dos Épicos ──────────────────────────────────────
+    st.divider()
+    st.subheader("% Completude dos Épicos")
+    st.caption("Proporção de itens filhos concluídos em relação ao total de itens de cada épico.")
+
+    if "parent_key" not in df_full.columns:
+        st.info("Nenhum épico encontrado nos dados retornados do Jira.")
+    else:
+        _filhos_ep = df_full[
+            df_full["parent_key"].notna() & (df_full["parent_key"] != "") &
+            df_full["parent_type"].str.lower().str.contains("epic|épico", na=False)
+        ] if "parent_type" in df_full.columns else df_full[
+            df_full["parent_key"].notna() & (df_full["parent_key"] != "")
+        ]
+
+        _epic_titles: dict = {}
+        if "parent_summary" in df_full.columns:
+            for _ek, _g in _filhos_ep.groupby("parent_key"):
+                _s = _g["parent_summary"].iloc[0]
+                _epic_titles[_ek] = _s if _s else _ek
+
+        _rows_comp = []
+        for _ek, _g in _filhos_ep.groupby("parent_key"):
+            _tot  = len(_g)
+            _done = int(_g["concluido"].sum())
+            _pct  = round(_done / _tot * 100, 1)
+            _tit  = _epic_titles.get(_ek, _ek)
+            if len(_tit) > 55:
+                _tit = _tit[:52] + "..."
+            _rows_comp.append({
+                "key": _ek, "Épico": _tit, "Total": _tot,
+                "Concluídos": _done, "Pendentes": _tot - _done,
+                "% Completude": _pct,
+            })
+
+        if not _rows_comp:
+            st.info("Nenhum item filho vinculado a épicos encontrado.")
+        else:
+            df_comp = pd.DataFrame(_rows_comp).sort_values("% Completude", ascending=True)
+
+            _ep_total    = len(df_comp)
+            _ep_completos = int((df_comp["% Completude"] == 100).sum())
+            _ep_media     = round(df_comp["% Completude"].mean(), 1)
+
+            c1, c2, c3 = st.columns(3)
+            with c1: kpi("Total de Épicos", str(_ep_total))
+            with c2: kpi("Épicos 100% concluídos", str(_ep_completos), color="#27ae60")
+            with c3: kpi("Completude Média", f"{_ep_media}%")
+
+            st.divider()
+
+            _bar_colors = []
+            for _p in df_comp["% Completude"]:
+                if _p >= 75:   _bar_colors.append("#27ae60")
+                elif _p >= 40: _bar_colors.append("#e67e22")
+                else:          _bar_colors.append("#c0392b")
+
+            fig_ep = go.Figure(go.Bar(
+                x=df_comp["% Completude"], y=df_comp["Épico"],
+                orientation="h", marker_color=_bar_colors,
+                text=[f"{p:.0f}%" for p in df_comp["% Completude"]],
+                textposition="outside",
+                customdata=df_comp[["Concluídos", "Total"]].values,
+                hovertemplate="%{y}<br>%{customdata[0]} de %{customdata[1]} concluídos<extra></extra>",
+            ))
+            fig_ep.update_layout(
+                title="% Completude por Épico", template=TEMPLATE,
+                height=max(300, len(df_comp) * 40 + 100),
+                xaxis=dict(range=[0, 115], ticksuffix="%"),
+                margin=dict(t=60, b=40, l=20, r=60),
+            )
+            st.plotly_chart(fig_ep, use_container_width=True)
+
+            st.divider()
+            st.markdown("**Detalhe por Épico**")
+            df_tbl = df_comp[["key", "Épico", "Total", "Concluídos", "Pendentes", "% Completude"]].copy()
+            df_tbl = df_tbl.rename(columns={"key": "Código"}).sort_values("% Completude", ascending=False)
+            st.dataframe(df_tbl, hide_index=True, use_container_width=True)
