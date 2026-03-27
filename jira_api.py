@@ -459,6 +459,56 @@ def load_from_jira(
 
 
 # ─────────────────────────────────────────────
+# BUSCA DE ISSUES PAIS (ÉPICOS / OBJETIVOS)
+# ─────────────────────────────────────────────
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_parent_issues(
+    jira_url: str,
+    email: str,
+    api_token: str,
+    issue_keys: tuple,          # tuple para ser hashável pelo cache
+) -> pd.DataFrame:
+    """
+    Dado um conjunto de chaves (ex.: épicos), busca esses issues na API
+    e retorna key, summary, tipo, status_cat, parent_key e parent_summary.
+    Usado para montar a cadeia Objetivo → Épico.
+    """
+    _EMPTY = pd.DataFrame(columns=[
+        "key", "summary", "tipo", "status_cat",
+        "parent_key", "parent_summary", "parent_type",
+    ])
+    if not issue_keys:
+        return _EMPTY
+
+    jql = "key in (" + ", ".join(issue_keys) + ")"
+    field_map = discover_fields(jira_url, email, api_token)
+
+    try:
+        issues = fetch_issues(jira_url, email, api_token, jql, field_map)
+    except Exception:
+        return _EMPTY
+
+    rows = []
+    for issue in issues:
+        f = issue.get("fields", {})
+        parent_raw  = f.get("parent") or {}
+        p_fields    = parent_raw.get("fields") or {}
+        cat_en      = f.get("status", {}).get("statusCategory", {}).get("name", "")
+        rows.append({
+            "key":            issue.get("key", ""),
+            "summary":        f.get("summary", ""),
+            "tipo":           f.get("issuetype", {}).get("name", ""),
+            "status_cat":     STATUS_CATEGORY_MAP.get(cat_en, cat_en),
+            "parent_key":     parent_raw.get("key", ""),
+            "parent_summary": p_fields.get("summary", "") or parent_raw.get("summary", ""),
+            "parent_type":    (p_fields.get("issuetype") or {}).get("name", ""),
+        })
+
+    return pd.DataFrame(rows) if rows else _EMPTY
+
+
+# ─────────────────────────────────────────────
 # HELPERS PARA app.py
 # ─────────────────────────────────────────────
 

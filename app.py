@@ -148,7 +148,7 @@ import os
 # from sharepoint import secrets_configured, get_secrets, load_from_sharepoint
 from jira_api import (
     jira_secrets_configured, get_jira_secrets, load_from_jira, test_connection, debug_jql,
-    discover_fields,
+    discover_fields, fetch_parent_issues,
 )
 
 with st.sidebar:
@@ -955,3 +955,99 @@ with tab_produto:
             df_tbl = df_comp[["key", "Épico", "Total", "Concluídos", "Pendentes", "% Completude"]].copy()
             df_tbl = df_tbl.rename(columns={"key": "Código"}).sort_values("% Completude", ascending=False)
             st.dataframe(df_tbl, hide_index=True, use_container_width=True)
+
+    # ── Visão por Objetivo ───────────────────────────────────────────
+    st.divider()
+    st.subheader("Visão por Objetivo")
+    st.caption("Épicos agrupados pelo objetivo pai, com progresso calculado a partir dos itens filhos.")
+
+    if "parent_key" not in df_full.columns or not jira_secrets_configured():
+        st.info("Dados insuficientes para montar a visão por objetivo.")
+    else:
+        epic_keys = tuple(sorted(
+            df_full.loc[df_full["parent_key"].notna() & (df_full["parent_key"] != ""), "parent_key"].unique()
+        ))
+
+        if not epic_keys:
+            st.info("Nenhum épico vinculado encontrado nos dados.")
+        else:
+            _sec = get_jira_secrets()
+            with st.spinner("Buscando objetivos..."):
+                df_epics = fetch_parent_issues(
+                    jira_url=_sec["jira_url"],
+                    email=_sec["email"],
+                    api_token=_sec["api_token"],
+                    issue_keys=epic_keys,
+                )
+
+            if df_epics.empty or "parent_key" not in df_epics.columns:
+                st.info("Objetivos não encontrados. Verifique se os épicos possuem um item pai no Jira.")
+            else:
+                # Qtd de issues (filhos) por épico
+                filhos_por_epico: dict = {}
+                for epic_key, grp in df_full.groupby("parent_key"):
+                    if epic_key:
+                        filhos_por_epico[epic_key] = {
+                            "total": len(grp),
+                            "done":  int(grp["concluido"].sum()),
+                        }
+
+                # Agrupa épicos por objetivo
+                obj_map: dict = {}
+                for _, er in df_epics.iterrows():
+                    obj_key     = er.get("parent_key") or "Sem Objetivo"
+                    obj_summary = er.get("parent_summary") or obj_key
+                    obj_map.setdefault(obj_key, {"summary": obj_summary, "epics": []})
+
+                    ep_filhos = filhos_por_epico.get(er["key"], {"total": 0, "done": 0})
+                    ep_pct    = round(ep_filhos["done"] / ep_filhos["total"] * 100, 1) \
+                                if ep_filhos["total"] > 0 else 0.0
+                    obj_map[obj_key]["epics"].append({
+                        "key":     er["key"],
+                        "summary": er.get("summary", er["key"]),
+                        "total":   ep_filhos["total"],
+                        "done":    ep_filhos["done"],
+                        "pct":     ep_pct,
+                    })
+
+                # KPIs
+                total_obj    = len(obj_map)
+                epics_linked = sum(len(v["epics"]) for v in obj_map.values())
+                c1, c2 = st.columns(2)
+                with c1: kpi("Total de Objetivos", str(total_obj))
+                with c2: kpi("Épicos Vinculados",  str(epics_linked))
+
+                st.markdown("")
+
+                # Árvore Objetivo → Épico
+                for obj_key, obj_data in sorted(obj_map.items()):
+                    epics    = obj_data["epics"]
+                    obj_tot  = sum(e["total"] for e in epics)
+                    obj_done = sum(e["done"]  for e in epics)
+                    obj_pct  = round(obj_done / obj_tot * 100, 1) if obj_tot > 0 else 0.0
+
+                    obj_title = obj_data["summary"]
+                    if len(obj_title) > 60:
+                        obj_title = obj_title[:57] + "..."
+
+                    header = (
+                        f"📌 **{obj_key}** — {obj_title}"
+                        f"&nbsp;&nbsp;&nbsp;`{obj_pct:.0f}%` ({obj_done}/{obj_tot} itens)"
+                    )
+                    with st.expander(f"📌 {obj_key} — {obj_title}  |  {obj_pct:.0f}% ({obj_done}/{obj_tot})", expanded=True):
+                        st.progress(obj_pct / 100)
+                        st.markdown("")
+                        for epic in sorted(epics, key=lambda x: x["pct"], reverse=True):
+                            ep_title = epic["summary"]
+                            if len(ep_title) > 60:
+                                ep_title = ep_title[:57] + "..."
+
+                            col_ico, col_title, col_bar, col_num = st.columns([0.4, 4, 3, 1.5])
+                            with col_ico:
+                                st.markdown("⚡")
+                            with col_title:
+                                st.markdown(f"**{epic['key']}** &nbsp; {ep_title}")
+                            with col_bar:
+                                st.progress(epic["pct"] / 100)
+                            with col_num:
+                                st.caption(f"{epic['pct']:.0f}% &nbsp;({epic['done']}/{epic['total']})")
