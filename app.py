@@ -1081,6 +1081,8 @@ with tab_produto:
                         "due_date":   er.get("due_date"),
                     }
 
+                jira_base_url = _sec["jira_url"]
+
                 # ── CSS ───────────────────────────────────────────────────────
                 CSS = """
                 <style>
@@ -1102,7 +1104,8 @@ with tab_produto:
                            width:140px; background:#dfe1e6; }
                 .pb-done { background:#5aac44; flex-shrink:0; }
                 .pb-prog { background:#0052cc; flex-shrink:0; }
-                .ik  { color:#0052cc; font-weight:600; font-size:12px; }
+                .ik  { color:#0052cc; font-weight:600; font-size:12px; text-decoration:none; }
+                .ik:hover { text-decoration:underline; }
                 .bk-icon { display:inline-block; width:14px; height:14px;
                            background:#00B8A3; border-radius:2px; margin-right:6px;
                            vertical-align:middle; position:relative; }
@@ -1153,7 +1156,7 @@ with tab_produto:
                       <td>
                         <span id="arrow-{grp_id}" class="arrow">▼</span>
                         <span class="bk-icon"></span>
-                        <span class="ik">{obj_key}</span>
+                        <a class="ik" href="{jira_base_url}/browse/{obj_key}" target="_blank">{obj_key}</a>
                         &nbsp; {obj_title}
                       </td>
                       <td>{_prog_bar_html(obj_done, obj_prog, obj_tot)}</td>
@@ -1188,7 +1191,7 @@ with tab_produto:
                           <td>
                             {ep_arrow}
                             <span class="lt-icon">⚡</span>
-                            <span class="ik">{epic["key"]}</span>
+                            <a class="ik" href="{jira_base_url}/browse/{epic["key"]}" target="_blank">{epic["key"]}</a>
                             &nbsp; {ep_title}
                           </td>
                           <td>{_prog_bar_html(epic["done"], epic["in_progress"], epic["total"])}</td>
@@ -1211,7 +1214,7 @@ with tab_produto:
                               <td></td>
                               <td>
                                 <span class="st-icon">▸</span>
-                                <span class="ik">{story["key"]}</span>
+                                <a class="ik" href="{jira_base_url}/browse/{story["key"]}" target="_blank">{story["key"]}</a>
                                 &nbsp; {st_title}
                               </td>
                               <td>{_status_dot(st_cat)}</td>
