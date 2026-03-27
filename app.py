@@ -1026,11 +1026,22 @@ with tab_produto:
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # ── Helper: barra tricolor ────────────────────────────────────
+                # ── Helpers ───────────────────────────────────────────────────
+                PT_MON = ["jan","fev","mar","abr","mai","jun",
+                          "jul","ago","set","out","nov","dez"]
+
+                def _fmt_date(dt) -> str:
+                    if dt is None or (isinstance(dt, float) and np.isnan(dt)):
+                        return "—"
+                    try:
+                        return f"{dt.day:02d} de {PT_MON[dt.month-1]}. de {dt.year}"
+                    except Exception:
+                        return "—"
+
                 def _prog_bar_html(done: int, in_prog: int, total: int) -> str:
                     if total == 0:
                         return '<div class="pb-wrap"></div>'
-                    d = done   / total * 100
+                    d = done    / total * 100
                     p = in_prog / total * 100
                     return (
                         f'<div class="pb-wrap">'
@@ -1039,7 +1050,35 @@ with tab_produto:
                         f'</div>'
                     )
 
-                # ── HTML da tabela ────────────────────────────────────────────
+                def _status_dot(status_cat: str) -> str:
+                    if "conclu" in status_cat.lower() or "done" in status_cat.lower():
+                        return '<span style="color:#5aac44;font-size:11px;">● Concluído</span>'
+                    if "andamento" in status_cat.lower() or "progress" in status_cat.lower():
+                        return '<span style="color:#0052cc;font-size:11px;">● Em andamento</span>'
+                    return '<span style="color:#97a0af;font-size:11px;">○ Pendente</span>'
+
+                # Stories do df_full agrupadas por epic_key
+                stories_por_epico: dict = {}
+                story_mask = (
+                    df_full["parent_key"].notna() & (df_full["parent_key"] != "") &
+                    df_full["parent_type"].str.lower().str.contains("epic|épico", na=False)
+                ) if "parent_type" in df_full.columns else (
+                    df_full["parent_key"].notna() & (df_full["parent_key"] != "")
+                )
+                for epic_key, grp in df_full[story_mask].groupby("parent_key"):
+                    stories_por_epico[epic_key] = grp[
+                        ["key", "resumo", "status_cat", "actual_start", "due_date"]
+                    ].to_dict("records")
+
+                # ── Tabela de épicos com datas (epic_key → row de df_epics) ──
+                epic_dates: dict = {}
+                for _, er in df_epics.iterrows():
+                    epic_dates[er["key"]] = {
+                        "start_date": er.get("start_date"),
+                        "due_date":   er.get("due_date"),
+                    }
+
+                # ── CSS ───────────────────────────────────────────────────────
                 CSS = """
                 <style>
                 .rt { width:100%; border-collapse:collapse;
@@ -1048,16 +1087,19 @@ with tab_produto:
                 .rt th { text-align:left; padding:8px 14px; border-bottom:2px solid #dfe1e6;
                          color:#5e6c84; font-weight:600; font-size:11px; text-transform:uppercase;
                          letter-spacing:.04em; white-space:nowrap; }
-                .rt td { padding:9px 14px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+                .rt td { padding:8px 14px; border-bottom:1px solid #f0f0f0; vertical-align:middle;
+                         white-space:nowrap; }
                 .rt tr:last-child td { border-bottom:none; }
-                .row-obj td { background:#f4f5f7; font-weight:600; }
+                .row-obj  td { background:#f4f5f7; font-weight:600; }
                 .row-epic td { background:#ffffff; }
                 .row-epic td:nth-child(2) { padding-left:36px; }
+                .row-story td { background:#fafbfc; }
+                .row-story td:nth-child(2) { padding-left:64px; }
                 .pb-wrap { display:flex; height:8px; border-radius:4px; overflow:hidden;
-                           width:150px; background:#dfe1e6; }
+                           width:140px; background:#dfe1e6; }
                 .pb-done { background:#5aac44; flex-shrink:0; }
                 .pb-prog { background:#0052cc; flex-shrink:0; }
-                .ik { color:#0052cc; font-weight:600; font-size:12px; }
+                .ik  { color:#0052cc; font-weight:600; font-size:12px; }
                 .bk-icon { display:inline-block; width:14px; height:14px;
                            background:#00B8A3; border-radius:2px; margin-right:6px;
                            vertical-align:middle; position:relative; }
@@ -1065,29 +1107,45 @@ with tab_produto:
                                   height:3px; background:white; border-radius:1px; }
                 .lt-icon { display:inline-block; color:#6554C0; margin-right:6px;
                            font-size:13px; vertical-align:middle; }
-                .cnt { color:#5e6c84; font-size:12px; }
-                .pri { color:#F79233; font-size:15px; font-weight:900; vertical-align:middle; }
-                .num { color:#97a0af; font-size:12px; }
+                .st-icon { display:inline-block; color:#97a0af; margin-right:6px;
+                           font-size:12px; vertical-align:middle; }
+                .cnt  { color:#5e6c84; font-size:12px; }
+                .dt   { color:#5e6c84; font-size:12px; }
+                .pri  { color:#F79233; font-size:15px; font-weight:900; vertical-align:middle; }
+                .num  { color:#97a0af; font-size:12px; }
+                .arrow { font-size:10px; color:#5e6c84; margin-right:5px;
+                         display:inline-block; width:10px; user-select:none; }
                 </style>
                 """
 
-                rows_html = ""
-                row_num   = 1
-                total_rows = 0  # para calcular altura do componente
+                # ── Linhas da tabela ──────────────────────────────────────────
+                rows_html  = ""
+                row_num    = 1
+                total_rows = 0
+                epic_counter = 0
+
                 for obj_key, obj_data in sorted(obj_map.items()):
                     epics    = obj_data["epics"]
-                    obj_tot  = sum(e["total"]       for e in epics)
-                    obj_done = sum(e["done"]         for e in epics)
-                    obj_prog = sum(e["in_progress"]  for e in epics)
+                    obj_tot  = sum(e["total"]      for e in epics)
+                    obj_done = sum(e["done"]        for e in epics)
+                    obj_prog = sum(e["in_progress"] for e in epics)
                     obj_todo = obj_tot - obj_done - obj_prog
                     grp_id   = f"grp{row_num}"
 
+                    # Datas do objetivo: mín início / máx limite dos épicos
+                    ep_starts = [epic_dates.get(e["key"], {}).get("start_date") for e in epics]
+                    ep_dues   = [epic_dates.get(e["key"], {}).get("due_date")   for e in epics]
+                    ep_starts = [d for d in ep_starts if d is not None]
+                    ep_dues   = [d for d in ep_dues   if d is not None]
+                    obj_start = min(ep_starts) if ep_starts else None
+                    obj_due   = max(ep_dues)   if ep_dues   else None
+
                     obj_title = obj_data["summary"]
-                    if len(obj_title) > 65:
-                        obj_title = obj_title[:62] + "…"
+                    if len(obj_title) > 60:
+                        obj_title = obj_title[:57] + "…"
 
                     rows_html += f"""
-                    <tr class="row-obj" onclick="toggleGroup('{grp_id}')" style="cursor:pointer">
+                    <tr class="row-obj" onclick="toggleObj('{grp_id}')" style="cursor:pointer">
                       <td class="num">{row_num}</td>
                       <td>
                         <span id="arrow-{grp_id}" class="arrow">▼</span>
@@ -1100,20 +1158,32 @@ with tab_produto:
                       <td class="cnt" style="color:#0052cc">◑ {obj_prog}</td>
                       <td class="cnt">○ {obj_todo}</td>
                       <td><span class="pri">≡</span></td>
+                      <td class="dt">{_fmt_date(obj_start)}</td>
+                      <td class="dt">{_fmt_date(obj_due)}</td>
                     </tr>"""
                     row_num   += 1
                     total_rows += 1
 
-                    for epic in sorted(epics, key=lambda x: x["done"] / x["total"] if x["total"] else 0, reverse=True):
+                    for epic in sorted(epics, key=lambda x: x["done"]/x["total"] if x["total"] else 0, reverse=True):
+                        epic_counter += 1
+                        ep_id    = f"ep{epic_counter}"
                         ep_title = epic["summary"]
-                        if len(ep_title) > 65:
-                            ep_title = ep_title[:62] + "…"
-                        ep_todo = epic["total"] - epic["done"] - epic["in_progress"]
+                        if len(ep_title) > 60:
+                            ep_title = ep_title[:57] + "…"
+                        ep_todo  = epic["total"] - epic["done"] - epic["in_progress"]
+                        ep_dates = epic_dates.get(epic["key"], {})
+                        ep_stories = stories_por_epico.get(epic["key"], [])
+                        has_stories = len(ep_stories) > 0
+
+                        ep_arrow = f'<span id="arrow-{ep_id}" class="arrow">{"▶" if has_stories else " "}</span>'
+                        ep_click = f'onclick="toggleEpic(event,\'{ep_id}\')"' if has_stories else ""
+                        ep_cursor = "cursor:pointer" if has_stories else ""
 
                         rows_html += f"""
-                        <tr class="row-epic {grp_id}">
+                        <tr class="row-epic {grp_id}" {ep_click} style="{ep_cursor}">
                           <td></td>
                           <td>
+                            {ep_arrow}
                             <span class="lt-icon">⚡</span>
                             <span class="ik">{epic["key"]}</span>
                             &nbsp; {ep_title}
@@ -1123,17 +1193,62 @@ with tab_produto:
                           <td class="cnt" style="color:#0052cc">◑ {epic["in_progress"]}</td>
                           <td class="cnt">○ {ep_todo}</td>
                           <td><span class="pri">≡</span></td>
+                          <td class="dt">{_fmt_date(ep_dates.get("start_date"))}</td>
+                          <td class="dt">{_fmt_date(ep_dates.get("due_date"))}</td>
                         </tr>"""
                         total_rows += 1
 
+                        for story in ep_stories:
+                            st_title = str(story.get("resumo", ""))
+                            if len(st_title) > 60:
+                                st_title = st_title[:57] + "…"
+                            st_cat = str(story.get("status_cat", ""))
+                            rows_html += f"""
+                            <tr class="row-story {grp_id} {ep_id}" style="display:none">
+                              <td></td>
+                              <td>
+                                <span class="st-icon">▸</span>
+                                <span class="ik">{story["key"]}</span>
+                                &nbsp; {st_title}
+                              </td>
+                              <td>{_status_dot(st_cat)}</td>
+                              <td colspan="3"></td>
+                              <td><span class="pri">≡</span></td>
+                              <td class="dt">{_fmt_date(story.get("actual_start"))}</td>
+                              <td class="dt">{_fmt_date(story.get("due_date"))}</td>
+                            </tr>"""
+                            total_rows += 1
+
+                # ── JavaScript ────────────────────────────────────────────────
                 JS = """
                 <script>
-                function toggleGroup(id) {
-                  const rows  = document.querySelectorAll('tr.' + id);
-                  const arrow = document.getElementById('arrow-' + id);
-                  const hidden = rows.length > 0 && rows[0].style.display === 'none';
-                  rows.forEach(r => r.style.display = hidden ? '' : 'none');
-                  if (arrow) arrow.textContent = hidden ? '▼' : '▶';
+                function toggleObj(grpId) {
+                  const epics = document.querySelectorAll('tr.row-epic.' + grpId);
+                  const arrow = document.getElementById('arrow-' + grpId);
+                  const hide  = epics.length > 0 && epics[0].style.display !== 'none';
+                  epics.forEach(function(r) {
+                    r.style.display = hide ? 'none' : '';
+                    if (hide) {
+                      // colapsa histórias dos épicos desse objetivo
+                      r.classList.forEach(function(cls) {
+                        if (cls.startsWith('ep')) {
+                          document.querySelectorAll('tr.row-story.' + cls)
+                            .forEach(function(s) { s.style.display = 'none'; });
+                          var ea = document.getElementById('arrow-' + cls);
+                          if (ea) ea.textContent = '▶';
+                        }
+                      });
+                    }
+                  });
+                  if (arrow) arrow.textContent = hide ? '▶' : '▼';
+                }
+                function toggleEpic(event, epId) {
+                  event.stopPropagation();
+                  const stories = document.querySelectorAll('tr.row-story.' + epId);
+                  const arrow   = document.getElementById('arrow-' + epId);
+                  const hide    = stories.length > 0 && stories[0].style.display !== 'none';
+                  stories.forEach(function(r) { r.style.display = hide ? 'none' : ''; });
+                  if (arrow) arrow.textContent = hide ? '▶' : '▼';
                 }
                 </script>
                 """
@@ -1150,6 +1265,8 @@ with tab_produto:
                       <th>Em andamento</th>
                       <th>Pendentes</th>
                       <th>Prioridade</th>
+                      <th>Data de Início</th>
+                      <th>Data Limite</th>
                     </tr>
                   </thead>
                   <tbody>{rows_html}</tbody>
@@ -1157,12 +1274,5 @@ with tab_produto:
                 {JS}
                 """
 
-                # CSS extra para a seta
-                st.markdown("""
-                <style>
-                  .arrow { font-size:10px; color:#5e6c84; margin-right:6px;
-                           display:inline-block; width:10px; }
-                </style>""", unsafe_allow_html=True)
-
-                height_px = 50 + total_rows * 44
+                height_px = 55 + total_rows * 44
                 components.html(table_html, height=height_px, scrolling=False)

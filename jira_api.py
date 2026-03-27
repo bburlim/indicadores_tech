@@ -119,7 +119,7 @@ def fetch_issues(
 
     standard = [
         "summary", "issuetype", "status", "created", "resolutiondate",
-        "priority", "assignee", "reporter", "labels", "parent",
+        "priority", "assignee", "reporter", "labels", "parent", "duedate",
     ]
     fields = list(dict.fromkeys(standard + list(field_map.values())))
 
@@ -273,6 +273,7 @@ def issues_to_dataframe(
             "resolvido":          _parse_date(f.get("resolutiondate")),
             "actual_start":       actual_start,
             "actual_end":         actual_end,
+            "due_date":           _parse_date(f.get("duedate")),
             "equipe":             equipe,
             "time_in_status":     str(tis_raw) if tis_raw else "",
             "categoria_trabalho": cat_trabalho,
@@ -329,7 +330,7 @@ def load_from_jira(
             "actual_end_str", "criado", "resolvido", "actual_start", "actual_end",
             "equipe", "time_in_status", "time_in_status_parsed", "categoria_trabalho",
             "categoria", "labels", "sprint", "parent_key", "parent_summary", "parent_type",
-            "tipo_class", "concluido",
+            "due_date", "tipo_class", "concluido",
             "lead_time", "cycle_time", "touch_time_ms", "touch_time_dias",
             "flow_efficiency", "vazao_qual", "origem", "mes_criado", "mes_resolvido",
         ])
@@ -477,6 +478,7 @@ def fetch_parent_issues(
     _EMPTY = pd.DataFrame(columns=[
         "key", "summary", "tipo", "status_cat",
         "parent_key", "parent_summary", "parent_type",
+        "start_date", "due_date",
     ])
     if not issue_keys:
         return _EMPTY
@@ -503,6 +505,8 @@ def fetch_parent_issues(
             "parent_key":     parent_raw.get("key", ""),
             "parent_summary": p_fields.get("summary", "") or parent_raw.get("summary", ""),
             "parent_type":    (p_fields.get("issuetype") or {}).get("name", ""),
+            "start_date":     _parse_date(f.get(field_map.get("actual_start", "__x__"), "")),
+            "due_date":       _parse_date(f.get("duedate")),
         })
 
     return pd.DataFrame(rows) if rows else _EMPTY
