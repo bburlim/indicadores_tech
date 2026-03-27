@@ -1255,6 +1255,11 @@ with tab_produto:
 
                 table_html = f"""
                 {CSS}
+                <style>
+                  .rt-scroll {{ overflow-x: auto; -webkit-overflow-scrolling: touch; }}
+                  .rt {{ min-width: 900px; }}
+                </style>
+                <div class="rt-scroll">
                 <table class="rt">
                   <thead>
                     <tr>
@@ -1271,6 +1276,7 @@ with tab_produto:
                   </thead>
                   <tbody>{rows_html}</tbody>
                 </table>
+                </div>
                 {JS}
                 """
 
