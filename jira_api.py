@@ -247,12 +247,16 @@ def issues_to_dataframe(
         assignee = f.get("assignee") or {}
         assignee_name = assignee.get("displayName", "")
 
+        parent_raw = f.get("parent") or {}
+        parent_key = parent_raw.get("key", "")
+
         row = {
             "key":                issue.get("key", ""),
             "resumo":             f.get("summary", ""),
             "tipo":               f.get("issuetype", {}).get("name", ""),
             "status":             f.get("status", {}).get("name", ""),
             "responsavel":        assignee_name,
+            "parent_key":         parent_key,
             "status_cat":         status_cat,
             "status_cat_changed": "",
             "prioridade":         (f.get("priority") or {}).get("name", ""),
@@ -319,7 +323,7 @@ def load_from_jira(
             "prioridade", "criado_str", "resolvido_str", "actual_start_str",
             "actual_end_str", "criado", "resolvido", "actual_start", "actual_end",
             "equipe", "time_in_status", "time_in_status_parsed", "categoria_trabalho",
-            "categoria", "labels", "sprint", "tipo_class", "concluido",
+            "categoria", "labels", "sprint", "parent_key", "tipo_class", "concluido",
             "lead_time", "cycle_time", "touch_time_ms", "touch_time_dias",
             "flow_efficiency", "vazao_qual", "origem", "mes_criado", "mes_resolvido",
         ])

@@ -866,5 +866,85 @@ with tab_vel:
 # ═══════════════════════════════════════════════
 
 with tab_produto:
-    st.subheader("Indicadores de Produto")
-    st.info("🚧 Em construção — indicadores de produto serão adicionados aqui.")
+    st.subheader("% Completude dos Épicos")
+    st.caption("Proporção de itens filhos concluídos em relação ao total de itens de cada épico.")
+
+    epicos = df_full[df_full["tipo"].str.lower().str.contains("epic|épico", na=False)]
+
+    if epicos.empty or "parent_key" not in df_full.columns:
+        st.info("Nenhum épico encontrado nos dados retornados do Jira.")
+    else:
+        filhos = df_full[
+            df_full["parent_key"].notna() & (df_full["parent_key"] != "") &
+            ~df_full["tipo"].str.lower().str.contains("epic|épico", na=False)
+        ]
+
+        rows_comp = []
+        for _, epic in epicos.iterrows():
+            children = filhos[filhos["parent_key"] == epic["key"]]
+            total = len(children)
+            done  = int(children["concluido"].sum()) if total > 0 else 0
+            pct   = round(done / total * 100, 1) if total > 0 else 0.0
+            titulo = epic["resumo"]
+            if len(titulo) > 55:
+                titulo = titulo[:52] + "..."
+            rows_comp.append({
+                "key":        epic["key"],
+                "Épico":      titulo,
+                "Total":      total,
+                "Concluídos": done,
+                "Pendentes":  total - done,
+                "% Completude": pct,
+            })
+
+        if not rows_comp:
+            st.info("Nenhum item filho vinculado a épicos encontrado.")
+        else:
+            df_comp = pd.DataFrame(rows_comp).sort_values("% Completude", ascending=True)
+
+            # KPIs
+            total_epicos = len(df_comp)
+            epicos_completos = int((df_comp["% Completude"] == 100).sum())
+            completude_media = round(df_comp["% Completude"].mean(), 1)
+
+            c1, c2, c3 = st.columns(3)
+            with c1: kpi("Total de Épicos", str(total_epicos))
+            with c2: kpi("Épicos 100% concluídos", str(epicos_completos), color="#27ae60")
+            with c3: kpi("Completude Média", f"{completude_media}%")
+
+            st.divider()
+
+            # Gráfico horizontal
+            bar_colors = []
+            for pct in df_comp["% Completude"]:
+                if pct >= 75:
+                    bar_colors.append("#27ae60")
+                elif pct >= 40:
+                    bar_colors.append("#e67e22")
+                else:
+                    bar_colors.append("#c0392b")
+
+            fig_ep = go.Figure(go.Bar(
+                x=df_comp["% Completude"],
+                y=df_comp["Épico"],
+                orientation="h",
+                marker_color=bar_colors,
+                text=[f"{p:.0f}%" for p in df_comp["% Completude"]],
+                textposition="outside",
+                customdata=df_comp[["Concluídos", "Total"]].values,
+                hovertemplate="%{y}<br>%{customdata[0]} de %{customdata[1]} concluídos<extra></extra>",
+            ))
+            fig_ep.update_layout(
+                title="% Completude por Épico",
+                template=TEMPLATE,
+                height=max(300, len(df_comp) * 40 + 100),
+                xaxis=dict(range=[0, 115], ticksuffix="%"),
+                margin=dict(t=60, b=40, l=20, r=60),
+            )
+            st.plotly_chart(fig_ep, use_container_width=True)
+
+            st.divider()
+            st.markdown("**Detalhe por Épico**")
+            df_tbl = df_comp[["key", "Épico", "Total", "Concluídos", "Pendentes", "% Completude"]].copy()
+            df_tbl = df_tbl.rename(columns={"key": "Código"}).sort_values("% Completude", ascending=False)
+            st.dataframe(df_tbl, hide_index=True, use_container_width=True)
