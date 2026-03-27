@@ -499,22 +499,22 @@ def vazao_por_equipe_mensal(df: pd.DataFrame) -> pd.DataFrame:
 # ─────────────────────────────────────────────
 
 COLORS = {
-    "abertura": "#FFA500",
-    "entregue": "#7B7FBF",
-    "defeito": "#9B3D5C",
-    "historia": "#5BC8D9",
-    "backlog": "#7B7FBF",
-    "lead_time": "#3B3FA0",
-    "cycle_time": "#2E9E6E",
-    "desvio_lt": "#7B7FBF",
-    "desvio_ct": "#222222",
-    "fluxo": "#9090E8",
-    "fluxo_bench": "#00CC99",
-    "bench_line": "#8888FF",
-    "sla_nao": "#FFA500",
-    "saude": "#7B7FBF",
-    "retrabalho": "#FFA07A",
-    "bench_rework": "#8888FF",
+    "abertura": "#FF8C42",       # laranja — itens abertos
+    "entregue": "#FF69AC",       # rosa emiteai — entregues
+    "defeito": "#C2185B",        # rosa escuro — defeitos
+    "historia": "#00BCD4",       # ciano — histórias
+    "backlog": "#FF69AC",        # rosa emiteai
+    "lead_time": "#880E4F",      # vinho — lead time
+    "cycle_time": "#00897B",     # verde-azulado — cycle time
+    "desvio_lt": "#FF69AC",      # rosa emiteai
+    "desvio_ct": "#1A0A14",      # escuro
+    "fluxo": "#F48FB1",          # rosa claro — fluxo
+    "fluxo_bench": "#00BFA5",    # verde-água — benchmark fluxo
+    "bench_line": "#FF69AC",     # rosa emiteai — linha de benchmark
+    "sla_nao": "#FF8C42",        # laranja — SLA não atendido
+    "saude": "#FF69AC",          # rosa emiteai
+    "retrabalho": "#FFB74D",     # âmbar — retrabalho
+    "bench_rework": "#FF69AC",   # rosa emiteai — benchmark rework
 }
 
 TEMPLATE = "plotly_white"

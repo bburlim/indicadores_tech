@@ -54,19 +54,35 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-  .block-container { padding-top: 1.5rem; }
-  .metric-card {
-    background: #5B5FCF; color: white; border-radius: 10px;
-    padding: 16px 20px; text-align: center;
-  }
-  .metric-card .val { font-size: 2rem; font-weight: bold; }
-  .metric-card .lbl { font-size: 0.8rem; margin-top: 2px; opacity: .85; }
-  .section-divider { border-top: 3px solid #5B5FCF; margin: 2rem 0 1rem; }
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
-  /* ── Tabs principais ── */
+  html, body, [class*="css"], .stApp {
+    font-family: 'Poppins', sans-serif !important;
+  }
+
+  .block-container { padding-top: 1.5rem; }
+
+  /* ── KPI Cards ── */
+  .metric-card {
+    background: linear-gradient(135deg, #FF69AC 0%, #e0478f 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 18px 20px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(255,105,172,0.3);
+  }
+  .metric-card .val { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+  .metric-card .lbl { font-size: 0.78rem; margin-top: 4px; opacity: .88; font-weight: 500; }
+  .section-divider {
+    border: none;
+    border-top: 2px solid #FFB3D5;
+    margin: 2rem 0 1rem;
+  }
+
+  /* ── Sub-tabs (st.tabs) ── */
   div[data-baseweb="tab-list"] {
     gap: 6px;
-    background: #f0f2f6;
+    background: #FFF0F6;
     padding: 4px 6px;
     border-radius: 12px;
     border-bottom: none !important;
@@ -74,25 +90,73 @@ st.markdown("""
   button[data-baseweb="tab"] {
     border-radius: 8px;
     padding: 8px 20px;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     font-weight: 500;
-    color: #5e6c84;
+    color: #8A4060;
     background: transparent;
     border: none;
+    font-family: 'Poppins', sans-serif !important;
     transition: background 0.2s, color 0.2s;
   }
   button[data-baseweb="tab"]:hover {
-    background: #e2e5ee;
-    color: #3d4560;
+    background: #FFD6EB;
+    color: #C2185B;
   }
   button[data-baseweb="tab"][aria-selected="true"] {
-    background: #5B5FCF !important;
+    background: #FF69AC !important;
     color: white !important;
     font-weight: 600;
-    box-shadow: 0 2px 6px rgba(91,95,207,0.35);
+    box-shadow: 0 2px 8px rgba(255,105,172,0.4);
   }
   div[data-baseweb="tab-highlight"] { display: none; }
   div[data-baseweb="tab-border"]    { display: none; }
+
+  /* ── Sidebar ── */
+  [data-testid="stSidebar"] {
+    background: #1A0A14 !important;
+  }
+  [data-testid="stSidebar"] * {
+    color: #F8D7EA !important;
+  }
+  [data-testid="stSidebar"] .stButton > button {
+    background: #FF69AC !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-family: 'Poppins', sans-serif !important;
+    font-weight: 600 !important;
+  }
+  [data-testid="stSidebar"] .stButton > button:hover {
+    background: #e0478f !important;
+  }
+  [data-testid="stSidebar"] [data-baseweb="select"] > div {
+    background: #2D0F22 !important;
+    border-color: #FF69AC !important;
+    color: #F8D7EA !important;
+  }
+  [data-testid="stSidebar"] label {
+    color: #FFB3D5 !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+  }
+  [data-testid="stSidebar"] hr {
+    border-color: #4A1A32 !important;
+  }
+  [data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] {
+    background: #FF69AC !important;
+  }
+  [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
+    color: #FF69AC !important;
+    font-weight: 500 !important;
+  }
+
+  /* ── Headings ── */
+  h1, h2, h3 {
+    font-family: 'Poppins', sans-serif !important;
+    font-weight: 700 !important;
+    color: #1A0A14 !important;
+  }
+  .stSubheader { color: #C2185B !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -102,7 +166,7 @@ st.markdown("""
 
 HEIGHT = 380
 
-def kpi(label: str, value: str, delta: str = "", color: str = "#5B5FCF"):
+def kpi(label: str, value: str, delta: str = "", color: str = "#FF69AC"):
     st.markdown(f"""
     <div class="metric-card" style="background:{color}">
       <div class="val">{value}</div>
@@ -185,8 +249,17 @@ from jira_api import (
 )
 
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2920/2920244.png", width=48)
-    st.title("Indicadores Tech")
+    st.markdown("""
+    <div style="text-align:center;padding:8px 0 4px">
+      <div style="font-size:2rem">📊</div>
+      <div style="font-size:1.05rem;font-weight:700;color:#FF69AC;font-family:Poppins,sans-serif;letter-spacing:-0.3px">
+        Indicadores Tech
+      </div>
+      <div style="font-size:0.7rem;color:#FF9DC8;letter-spacing:2px;text-transform:uppercase;margin-top:2px">
+        emiteai
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
     st.divider()
 
     # ── Fonte de dados ───────────────────────────────
@@ -398,9 +471,23 @@ labels = [label_mes(m) for m in meses]
 # ─────────────────────────────────────────────
 
 st.markdown("""
-<div style="background:#5B5FCF;color:white;text-align:center;
-            padding:16px;border-radius:8px;font-size:1.4rem;font-weight:bold;margin-bottom:1.5rem">
-  📊 Indicadores — Tecnologia &amp; Produto
+<div style="
+  background: linear-gradient(135deg, #1A0A14 0%, #3D0A24 60%, #6B0F3A 100%);
+  color: white;
+  text-align: center;
+  padding: 20px 24px;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(255,105,172,0.2);
+  font-family: 'Poppins', sans-serif;
+">
+  <span style="font-size:0.75rem;font-weight:500;letter-spacing:3px;text-transform:uppercase;opacity:0.7;display:block;margin-bottom:4px">
+    emiteai · engenharia
+  </span>
+  <span style="font-size:1.5rem;font-weight:700;letter-spacing:-0.5px">
+    📊 Indicadores — Tecnologia &amp; Produto
+  </span>
+  <span style="display:block;width:48px;height:3px;background:#FF69AC;margin:10px auto 0;border-radius:2px"></span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -412,12 +499,17 @@ nav_main = option_menu(
     default_index=0,
     orientation="horizontal",
     styles={
-        "container": {"padding": "4px 6px", "background-color": "#f0f2f6", "border-radius": "12px"},
-        "icon": {"color": "#5e6c84", "font-size": "0.9rem"},
-        "nav-link": {"font-size": "0.9rem", "font-weight": "500", "color": "#5e6c84",
-                     "border-radius": "8px", "padding": "8px 20px", "--hover-color": "#e8eaf6"},
-        "nav-link-selected": {"background-color": "#5B5FCF", "color": "white",
-                              "font-weight": "600", "box-shadow": "0 2px 6px rgba(91,95,207,0.35)"},
+        "container": {"padding": "4px 6px", "background-color": "#FFF0F6", "border-radius": "12px"},
+        "icon": {"color": "#8A4060", "font-size": "0.9rem"},
+        "nav-link": {
+            "font-size": "0.9rem", "font-weight": "500", "color": "#8A4060",
+            "border-radius": "8px", "padding": "8px 24px",
+            "--hover-color": "#FFD6EB", "font-family": "Poppins, sans-serif",
+        },
+        "nav-link-selected": {
+            "background-color": "#FF69AC", "color": "white",
+            "font-weight": "600", "box-shadow": "0 2px 8px rgba(255,105,172,0.4)",
+        },
     },
     key="nav_main",
 )
