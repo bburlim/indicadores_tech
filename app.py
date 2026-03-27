@@ -942,8 +942,6 @@ with tab_produto:
                 with c2: kpi("Objetivos 100% concluídos", str(obj_completos), color="#27ae60")
                 with c3: kpi("Completude Média dos Objetivos", f"{completude_media_obj}%")
 
-                st.markdown("<br>", unsafe_allow_html=True)
-
                 # ── Helpers ───────────────────────────────────────────────────
                 PT_MON = ["jan","fev","mar","abr","mai","jun",
                           "jul","ago","set","out","nov","dez"]
@@ -1043,9 +1041,9 @@ with tab_produto:
                 """
 
                 # ── Linhas da tabela ──────────────────────────────────────────
-                rows_html  = ""
-                row_num    = 1
-                total_rows = 0
+                rows_html    = ""
+                row_num      = 1
+                total_rows   = 0   # apenas linhas visíveis (obj + épico)
                 epic_counter = 0
 
                 for obj_key, obj_data in sorted(obj_map.items()):
@@ -1141,7 +1139,7 @@ with tab_produto:
                               <td class="dt">{_fmt_date(story.get("start_date_display"))}</td>
                               <td class="dt">{_fmt_date(story.get("due_date"))}</td>
                             </tr>"""
-                            total_rows += 1
+                            # histórias começam ocultas — não contam na altura inicial
 
                 # ── JavaScript ────────────────────────────────────────────────
                 JS = """
