@@ -505,7 +505,8 @@ def fetch_parent_issues(
             "parent_key":     parent_raw.get("key", ""),
             "parent_summary": p_fields.get("summary", "") or parent_raw.get("summary", ""),
             "parent_type":    (p_fields.get("issuetype") or {}).get("name", ""),
-            "start_date":     _parse_date(f.get(field_map.get("actual_start", "__x__"), "")),
+            "start_date":     _parse_date(f.get(field_map.get("actual_start", "__x__"), ""))
+                              or _parse_date(f.get("created")),
             "due_date":       _parse_date(f.get("duedate")),
         })
 

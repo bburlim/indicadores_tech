@@ -1066,8 +1066,11 @@ with tab_produto:
                     df_full["parent_key"].notna() & (df_full["parent_key"] != "")
                 )
                 for epic_key, grp in df_full[story_mask].groupby("parent_key"):
-                    stories_por_epico[epic_key] = grp[
-                        ["key", "resumo", "status_cat", "actual_start", "due_date"]
+                    grp2 = grp.copy()
+                    # Fallback: usa criado quando actual_start está vazio
+                    grp2["start_date_display"] = grp2["actual_start"].fillna(grp2["criado"])
+                    stories_por_epico[epic_key] = grp2[
+                        ["key", "resumo", "status_cat", "start_date_display", "due_date"]
                     ].to_dict("records")
 
                 # ── Tabela de épicos com datas (epic_key → row de df_epics) ──
@@ -1214,7 +1217,7 @@ with tab_produto:
                               <td>{_status_dot(st_cat)}</td>
                               <td colspan="3"></td>
                               <td><span class="pri">≡</span></td>
-                              <td class="dt">{_fmt_date(story.get("actual_start"))}</td>
+                              <td class="dt">{_fmt_date(story.get("start_date_display"))}</td>
                               <td class="dt">{_fmt_date(story.get("due_date"))}</td>
                             </tr>"""
                             total_rows += 1
