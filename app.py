@@ -867,6 +867,9 @@ with tab_vel:
 # ═══════════════════════════════════════════════
 
 with tab_produto:
+    sub_obj, sub_ep = st.tabs(["📌 Objetivos", "⚡ Épicos"])
+
+with sub_obj:
     st.subheader("Visão por Objetivo")
     st.caption("Épicos agrupados pelo objetivo pai, com progresso calculado a partir dos itens filhos.")
 
@@ -1205,8 +1208,7 @@ with tab_produto:
                 height_px = 55 + total_rows * 44
                 components.html(table_html, height=height_px, scrolling=False)
 
-    # ── % Completude dos Épicos ──────────────────────────────────────
-    st.divider()
+with sub_ep:
     st.subheader("% Completude dos Épicos")
     st.caption("Proporção de itens filhos concluídos em relação ao total de itens de cada épico.")
 
