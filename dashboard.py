@@ -463,6 +463,27 @@ def tempo_por_status_total(df: pd.DataFrame) -> Dict[str, float]:
     return dict(totals)
 
 
+def tempo_por_status_mensal(df: pd.DataFrame) -> pd.DataFrame:
+    """Percentual do tempo passado em cada status por mês de resolução.
+    Retorna DataFrame com índice = mes (YYYY-MM) e colunas = status IDs."""
+    sub = df[df["concluido"]]
+    rows = []
+    for ym, grp in sub.groupby("mes_resolvido"):
+        totals: Dict[str, float] = defaultdict(float)
+        for tis in grp["time_in_status_parsed"]:
+            for sid, ms in tis.items():
+                totals[sid] += ms
+        grand_total = sum(totals.values())
+        if grand_total > 0:
+            row = {"mes": ym}
+            for sid, ms in totals.items():
+                row[sid] = ms / grand_total * 100
+            rows.append(row)
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).set_index("mes").fillna(0)
+
+
 STATUS_NAMES: Dict[str, str] = {
     "3":     "Em andamento",
     "10006": "Concluído",

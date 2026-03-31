@@ -28,6 +28,7 @@ from dashboard import (
     retrabalho_mensal,
     saude_backlog_mensal,
     tempo_por_status_total,
+    tempo_por_status_mensal,
     infer_status_names,
     ACTIVE_STATUS_IDS,
     DONE_STATUS_IDS,
@@ -954,6 +955,44 @@ if nav_main == "💻 Tecnologia":
                 margin=dict(t=60, b=60),
             )
             st.plotly_chart(fig_tps, use_container_width=True)
+
+        # ── Tempo por Status — Geral (% empilhado por mês) ───────────────
+        tps_mensal = tempo_por_status_mensal(df)
+        if not tps_mensal.empty:
+            meses_disp = [m for m in meses if m in tps_mensal.index]
+            if meses_disp:
+                STATUS_PALETTE = [
+                    "#6C63FF", "#00BFA5", "#1A237E", "#26A69A", "#00695C",
+                    "#80CBC4", "#FF8F00", "#6D4C41", "#EC407A", "#B0BEC5",
+                    "#43A047", "#EF5350",
+                ]
+                fig_geral = go.Figure()
+                status_names_local = infer_status_names(df)
+                for i, sid in enumerate(tps_mensal.columns):
+                    nome = status_names_local.get(sid, f"Status {sid}")
+                    vals = [tps_mensal.loc[m, sid] if m in tps_mensal.index else 0.0
+                            for m in meses_disp]
+                    fig_geral.add_trace(go.Bar(
+                        name=nome,
+                        x=[label_mes(m) for m in meses_disp],
+                        y=vals,
+                        marker_color=STATUS_PALETTE[i % len(STATUS_PALETTE)],
+                        text=[f"{v:.1f}%" if v >= 3 else "" for v in vals],
+                        textposition="inside",
+                        insidetextanchor="middle",
+                        textfont=dict(color="white", size=11),
+                    ))
+                fig_geral.update_layout(
+                    title="Tempo por Status — Geral (%)",
+                    barmode="stack",
+                    template="plotly_white",
+                    height=HEIGHT + 60,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                                xanchor="left", x=0),
+                    margin=dict(t=100, b=40, l=40, r=20),
+                    yaxis=dict(ticksuffix="%", range=[0, 100]),
+                )
+                st.plotly_chart(fig_geral, use_container_width=True)
 
         st.divider()
         st.subheader("Relação de Itens Entregues")
