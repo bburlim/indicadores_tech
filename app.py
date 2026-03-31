@@ -23,6 +23,7 @@ from dashboard import (
     desvio_padrao_mensal,
     vazao_qualificada_mensal,
     vazao_por_equipe_mensal,
+    vazao_por_responsavel_mensal,
     flow_efficiency_mensal,
     retrabalho_mensal,
     saude_backlog_mensal,
@@ -604,23 +605,12 @@ if nav_main == "💻 Tecnologia":
                 use_container_width=True,
             )
         with c2:
-            vq_equipe_pivot = vazao_por_equipe_mensal(df)
-            tbl = pivot_table(vq_equipe_pivot, meses)
-            if tbl is not None:
-                st.markdown("**Vazão Qualificada por Equipe**")
-                st.dataframe(tbl, hide_index=True, use_container_width=True)
-            elif "responsavel" in df.columns:
-                sub_resp = df[df["concluido"] & df["responsavel"].notna() & (df["responsavel"] != "")]
-                if not sub_resp.empty:
-                    pivot_resp = sub_resp.pivot_table(
-                        index="responsavel", columns="mes_resolvido",
-                        values="vazao_qual", aggfunc="sum", fill_value=0,
-                    )
-                    tbl_resp = pivot_table(pivot_resp, meses)
-                    if tbl_resp is not None:
-                        tbl_resp = tbl_resp.rename(columns={"responsavel": "Responsável"})
-                        st.markdown("**Vazão Qualificada por Responsável**")
-                        st.dataframe(tbl_resp, hide_index=True, use_container_width=True)
+            vq_resp_pivot = vazao_por_responsavel_mensal(df)
+            tbl_resp = pivot_table(vq_resp_pivot, meses)
+            if tbl_resp is not None:
+                tbl_resp = tbl_resp.rename(columns={"responsavel": "Usuário"})
+                st.markdown("**Vazão Qualificada por Usuário**")
+                st.dataframe(tbl_resp, hide_index=True, use_container_width=True)
 
         # ── Vazão Qualificada — Subtarefas ───────────────────────────────
         df_sub = df[df["tipo_class"] == "Subtarefa"]
@@ -649,23 +639,12 @@ if nav_main == "💻 Tecnologia":
                     use_container_width=True,
                 )
             with c2:
-                vq_equipe_sub = vazao_por_equipe_mensal(df_sub)
-                tbl_s = pivot_table(vq_equipe_sub, meses)
+                vq_resp_sub = vazao_por_responsavel_mensal(df_sub)
+                tbl_s = pivot_table(vq_resp_sub, meses)
                 if tbl_s is not None:
-                    st.markdown("**Vazão Qualificada Subtarefas por Equipe**")
+                    tbl_s = tbl_s.rename(columns={"responsavel": "Usuário"})
+                    st.markdown("**Vazão Qualificada Subtarefas por Usuário**")
                     st.dataframe(tbl_s, hide_index=True, use_container_width=True)
-                elif "responsavel" in df_sub.columns:
-                    sub_r = df_sub[df_sub["concluido"] & df_sub["responsavel"].notna() & (df_sub["responsavel"] != "")]
-                    if not sub_r.empty:
-                        piv_r = sub_r.pivot_table(
-                            index="responsavel", columns="mes_resolvido",
-                            values="vazao_qual", aggfunc="sum", fill_value=0,
-                        )
-                        tbl_r = pivot_table(piv_r, meses)
-                        if tbl_r is not None:
-                            tbl_r = tbl_r.rename(columns={"responsavel": "Responsável"})
-                            st.markdown("**Vazão Qualificada Subtarefas por Responsável**")
-                            st.dataframe(tbl_r, hide_index=True, use_container_width=True)
 
 
     # ═══════════════════════════════════════════════

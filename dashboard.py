@@ -494,6 +494,15 @@ def vazao_por_equipe_mensal(df: pd.DataFrame) -> pd.DataFrame:
     return pivot
 
 
+def vazao_por_responsavel_mensal(df: pd.DataFrame) -> pd.DataFrame:
+    """Vazão qualificada por responsável — inclui todos os itens concluídos,
+    independente de equipe preenchida."""
+    sub = df[df["concluido"] & df["responsavel"].notna() & (df["responsavel"] != "")]
+    pivot = sub.pivot_table(index="responsavel", columns="mes_resolvido",
+                             values="vazao_qual", aggfunc="sum", fill_value=0)
+    return pivot
+
+
 # ─────────────────────────────────────────────
 # GERAÇÃO DO DASHBOARD HTML
 # ─────────────────────────────────────────────
