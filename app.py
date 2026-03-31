@@ -834,17 +834,25 @@ if nav_main == "💻 Tecnologia":
                 use_container_width=True,
             )
         with c2:
-            # Lead Time por equipe
-            if not df[df["equipe"].notna() & (df["equipe"] != "")].empty:
-                lt_eq_pivot = (
-                    df[df["concluido"] & df["lead_time"].notna() & df["equipe"].notna()]
-                    .groupby(["equipe", "mes_resolvido"])["lead_time"]
+            # Cycle Time P85 por usuário — Histórias e Defeitos
+            df_ct_usr = df[
+                df["concluido"] &
+                df["cycle_time"].notna() &
+                df["responsavel"].notna() &
+                (df["responsavel"] != "") &
+                df["tipo_class"].isin(["Defeito", "História"])
+            ]
+            if not df_ct_usr.empty:
+                ct_usr_pivot = (
+                    df_ct_usr
+                    .groupby(["responsavel", "mes_resolvido"])["cycle_time"]
                     .apply(percentil85)
                     .unstack(fill_value=0)
                 )
-                tbl = pivot_table(lt_eq_pivot, meses)
+                tbl = pivot_table(ct_usr_pivot, meses)
                 if tbl is not None:
-                    st.markdown("**Lead Time P85 por Equipe (dias)**")
+                    tbl = tbl.rename(columns={"responsavel": "Usuário"})
+                    st.markdown("**Cycle Time P85 por Usuário — Histórias e Bugs (dias)**")
                     st.dataframe(tbl, hide_index=True, use_container_width=True)
 
         st.divider()
