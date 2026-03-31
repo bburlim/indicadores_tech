@@ -1481,6 +1481,78 @@ elif nav_main == "🎯 Produto":
 
                     st.divider()
 
+        # ── % Evolução de Histórias + Histórias por Status ────────────────
+        _his = df_full[df_full["tipo_class"] == "História"]
+        if not _his.empty:
+            _his_total  = len(_his)
+            _his_done   = int(_his["concluido"].sum())
+            _his_pct    = round(_his_done / _his_total * 100, 1) if _his_total else 0.0
+
+            col_gh, col_sh = st.columns([1, 2])
+
+            with col_gh:
+                fig_gh = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=_his_pct,
+                    number={"suffix": "%", "font": {"size": 28}, "valueformat": ".1f"},
+                    title={"text": "% Evolução de Histórias", "font": {"size": 13}},
+                    domain={"x": [0, 1], "y": [0.15, 1]},
+                    gauge={
+                        "axis": {
+                            "range": [0, 100],
+                            "tickvals": [0, 100],
+                            "ticktext": ["0.00%", "100.00%"],
+                            "tickfont": {"size": 10},
+                        },
+                        "bar": {"color": "#2E7D8A", "thickness": 0.3},
+                        "bgcolor": "#e0e0e0",
+                        "borderwidth": 0,
+                        "shape": "angular",
+                        "steps": [{"range": [0, 100], "color": "#e0e0e0"}],
+                    },
+                ))
+                fig_gh.update_layout(
+                    height=200,
+                    margin=dict(t=30, b=10, l=20, r=20),
+                    paper_bgcolor="white",
+                )
+                st.plotly_chart(fig_gh, use_container_width=True)
+
+            with col_sh:
+                _his_status = (
+                    _his["status"].value_counts().reset_index()
+                    if "status" in _his.columns
+                    else _his["status_cat"].value_counts().reset_index()
+                )
+                _his_status.columns = ["Status", "Quantidade"]
+                _his_status = _his_status.sort_values("Quantidade", ascending=True)
+
+                _HIS_COLORS = [
+                    "#1E1E7E", "#2E7D8A", "#c0392b", "#4CAF50",
+                    "#e67e22", "#6C8EAD", "#9B3D5C", "#7B7FBF",
+                    "#FF8C42", "#00BCD4", "#43A047", "#EF5350",
+                ]
+                fig_sh = go.Figure(go.Bar(
+                    x=_his_status["Quantidade"],
+                    y=_his_status["Status"],
+                    orientation="h",
+                    marker_color=[_HIS_COLORS[i % len(_HIS_COLORS)]
+                                  for i in range(len(_his_status))],
+                    text=_his_status["Quantidade"],
+                    textposition="outside",
+                ))
+                fig_sh.update_layout(
+                    title="Histórias por Status",
+                    template="plotly_white",
+                    height=max(280, len(_his_status) * 36 + 80),
+                    margin=dict(t=50, b=20, l=20, r=50),
+                    xaxis=dict(visible=False),
+                    yaxis=dict(automargin=True),
+                )
+                st.plotly_chart(fig_sh, use_container_width=True)
+
+            st.divider()
+
         st.subheader("% Completude dos Épicos")
         st.caption("Proporção de itens filhos concluídos em relação ao total de itens de cada épico.")
 
