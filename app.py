@@ -605,7 +605,8 @@ if nav_main == "💻 Tecnologia":
                 use_container_width=True,
             )
         with c2:
-            vq_resp_pivot = vazao_por_responsavel_mensal(df)
+            df_def_his = df[df["tipo_class"].isin(["Defeito", "História"])]
+            vq_resp_pivot = vazao_por_responsavel_mensal(df_def_his)
             tbl_resp = pivot_table(vq_resp_pivot, meses)
             if tbl_resp is not None:
                 tbl_resp = tbl_resp.rename(columns={"responsavel": "Usuário"})
