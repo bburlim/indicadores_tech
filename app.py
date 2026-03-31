@@ -1405,8 +1405,8 @@ elif nav_main == "🎯 Produto":
                             mode="gauge+number",
                             value=_ep_pct,
                             number={"suffix": "%", "font": {"size": 28}, "valueformat": ".1f"},
-                            title={"text": "% Épicos Entregues", "font": {"size": 13}},
-                            domain={"x": [0, 1], "y": [0.15, 1]},
+                            title={"text": ""},
+                            domain={"x": [0, 1], "y": [0, 0.82]},
                             gauge={
                                 "axis": {
                                     "range": [0, 100],
@@ -1425,8 +1425,15 @@ elif nav_main == "🎯 Produto":
                         ))
                         fig_gauge.update_layout(
                             height=200,
-                            margin=dict(t=30, b=10, l=20, r=20),
+                            margin=dict(t=36, b=10, l=20, r=20),
                             paper_bgcolor="white",
+                            annotations=[dict(
+                                text="% Épicos Entregues",
+                                x=0.5, y=1.0,
+                                xanchor="center", yanchor="top",
+                                showarrow=False,
+                                font=dict(size=13),
+                            )],
                         )
                         st.plotly_chart(fig_gauge, use_container_width=True)
 
@@ -1495,8 +1502,8 @@ elif nav_main == "🎯 Produto":
                     mode="gauge+number",
                     value=_his_pct,
                     number={"suffix": "%", "font": {"size": 28}, "valueformat": ".1f"},
-                    title={"text": "% Evolução de Histórias", "font": {"size": 13}},
-                    domain={"x": [0, 1], "y": [0.15, 1]},
+                    title={"text": ""},
+                    domain={"x": [0, 1], "y": [0, 0.82]},
                     gauge={
                         "axis": {
                             "range": [0, 100],
@@ -1513,8 +1520,15 @@ elif nav_main == "🎯 Produto":
                 ))
                 fig_gh.update_layout(
                     height=200,
-                    margin=dict(t=30, b=10, l=20, r=20),
+                    margin=dict(t=36, b=10, l=20, r=20),
                     paper_bgcolor="white",
+                    annotations=[dict(
+                        text="% Evolução de Histórias",
+                        x=0.5, y=1.0,
+                        xanchor="center", yanchor="top",
+                        showarrow=False,
+                        font=dict(size=13),
+                    )],
                 )
                 st.plotly_chart(fig_gh, use_container_width=True)
 
