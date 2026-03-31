@@ -476,7 +476,7 @@ def fetch_parent_issues(
     Usado para montar a cadeia Objetivo → Épico.
     """
     _EMPTY = pd.DataFrame(columns=[
-        "key", "summary", "tipo", "status_cat",
+        "key", "summary", "tipo", "status", "status_cat",
         "parent_key", "parent_summary", "parent_type",
         "start_date", "due_date",
     ])
@@ -501,6 +501,7 @@ def fetch_parent_issues(
             "key":            issue.get("key", ""),
             "summary":        f.get("summary", ""),
             "tipo":           f.get("issuetype", {}).get("name", ""),
+            "status":         f.get("status", {}).get("name", ""),
             "status_cat":     STATUS_CATEGORY_MAP.get(cat_en, cat_en),
             "parent_key":     parent_raw.get("key", ""),
             "parent_summary": p_fields.get("summary", "") or parent_raw.get("summary", ""),

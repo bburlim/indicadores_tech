@@ -1369,6 +1369,113 @@ elif nav_main == "🎯 Produto":
                     components.html(table_html, height=height_px, scrolling=False)
 
     with sub_ep:
+        # ── Busca épicos via parent_key dos filhos ────────────────────────
+        _ep_cards_ok = (
+            "parent_key" in df_full.columns and
+            "parent_type" in df_full.columns and
+            jira_ok
+        )
+        if _ep_cards_ok:
+            _filhos_cards = df_full[
+                df_full["parent_key"].notna() & (df_full["parent_key"] != "") &
+                df_full["parent_type"].str.lower().str.contains("epic|épico", na=False)
+            ]
+            _epic_keys_cards = tuple(sorted(_filhos_cards["parent_key"].unique()))
+            if _epic_keys_cards:
+                _sec2 = get_jira_secrets()
+                with st.spinner("Buscando dados dos épicos..."):
+                    _df_ep = fetch_parent_issues(
+                        jira_url=_sec2["jira_url"],
+                        email=_sec2["email"],
+                        api_token=_sec2["api_token"],
+                        issue_keys=_epic_keys_cards,
+                    )
+
+                if not _df_ep.empty:
+                    _ep_total_n   = len(_df_ep)
+                    _ep_done_n    = int(_df_ep["status_cat"].str.contains(
+                        "Concluído|Done|done|conclu", case=False, na=False).sum())
+                    _ep_pct       = round(_ep_done_n / _ep_total_n * 100, 1) if _ep_total_n else 0.0
+
+                    col_gauge, col_status = st.columns([1, 2])
+
+                    # ── Card 1: gauge % épicos entregues ──────────────────
+                    with col_gauge:
+                        fig_gauge = go.Figure(go.Indicator(
+                            mode="gauge+number",
+                            value=_ep_pct,
+                            number={"suffix": "%", "font": {"size": 36}},
+                            title={"text": "% Épicos Entregues", "font": {"size": 14}},
+                            gauge={
+                                "axis": {"range": [0, 100],
+                                         "tickvals": [0, 100],
+                                         "ticktext": ["0.0%", "100.0%"],
+                                         "tickfont": {"size": 11}},
+                                "bar": {"color": "#7B7FBF", "thickness": 0.35},
+                                "bgcolor": "#e8e8e8",
+                                "borderwidth": 0,
+                                "shape": "angular",
+                                "steps": [{"range": [0, 100], "color": "#e0e0e8"}],
+                            },
+                        ))
+                        fig_gauge.update_layout(
+                            height=220,
+                            margin=dict(t=40, b=0, l=30, r=30),
+                            paper_bgcolor="white",
+                        )
+                        st.plotly_chart(fig_gauge, use_container_width=True)
+
+                        # mini KPIs abaixo do gauge
+                        _g1, _g2 = st.columns(2)
+                        with _g1:
+                            st.markdown(f"""
+                            <div style="background:#6b6b6b;color:white;border-radius:8px;
+                                        padding:10px;text-align:center;">
+                              <div style="font-size:0.72rem;opacity:.85">Épicos Entregues</div>
+                              <div style="font-size:1.5rem;font-weight:700">{_ep_done_n}</div>
+                            </div>""", unsafe_allow_html=True)
+                        with _g2:
+                            st.markdown(f"""
+                            <div style="background:#6b6b6b;color:white;border-radius:8px;
+                                        padding:10px;text-align:center;">
+                              <div style="font-size:0.72rem;opacity:.85">Total Épicos Criados</div>
+                              <div style="font-size:1.5rem;font-weight:700">{_ep_total_n}</div>
+                            </div>""", unsafe_allow_html=True)
+
+                    # ── Card 2: épicos por status ──────────────────────────
+                    with col_status:
+                        _status_col = "status" if "status" in _df_ep.columns else "status_cat"
+                        _status_counts = (
+                            _df_ep[_status_col]
+                            .value_counts()
+                            .reset_index()
+                        )
+                        _status_counts.columns = ["Status", "Quantidade"]
+
+                        _STATUS_COLORS = [
+                            "#C9B8C8", "#2E7D8A", "#9099AA", "#26A0B0",
+                            "#7B7FBF", "#6C8EAD", "#A0522D", "#4CAF50",
+                        ]
+                        fig_status = go.Figure(go.Bar(
+                            x=_status_counts["Status"],
+                            y=_status_counts["Quantidade"],
+                            marker_color=[_STATUS_COLORS[i % len(_STATUS_COLORS)]
+                                          for i in range(len(_status_counts))],
+                            text=_status_counts["Quantidade"],
+                            textposition="outside",
+                        ))
+                        fig_status.update_layout(
+                            title="Épicos por Status",
+                            template="plotly_white",
+                            height=300,
+                            margin=dict(t=50, b=60, l=20, r=20),
+                            yaxis=dict(visible=False),
+                            xaxis=dict(tickangle=-20),
+                        )
+                        st.plotly_chart(fig_status, use_container_width=True)
+
+                    st.divider()
+
         st.subheader("% Completude dos Épicos")
         st.caption("Proporção de itens filhos concluídos em relação ao total de itens de cada épico.")
 
