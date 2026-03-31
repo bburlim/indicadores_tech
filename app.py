@@ -1404,23 +1404,28 @@ elif nav_main == "🎯 Produto":
                         fig_gauge = go.Figure(go.Indicator(
                             mode="gauge+number",
                             value=_ep_pct,
-                            number={"suffix": "%", "font": {"size": 36}},
-                            title={"text": "% Épicos Entregues", "font": {"size": 14}},
+                            number={"suffix": "%", "font": {"size": 28}, "valueformat": ".1f"},
+                            title={"text": "% Épicos Entregues", "font": {"size": 13}},
+                            domain={"x": [0, 1], "y": [0.15, 1]},
                             gauge={
-                                "axis": {"range": [0, 100],
-                                         "tickvals": [0, 100],
-                                         "ticktext": ["0.0%", "100.0%"],
-                                         "tickfont": {"size": 11}},
-                                "bar": {"color": "#7B7FBF", "thickness": 0.35},
-                                "bgcolor": "#e8e8e8",
+                                "axis": {
+                                    "range": [0, 100],
+                                    "tickvals": [0, 100],
+                                    "ticktext": ["0.0%", "100.0%"],
+                                    "tickfont": {"size": 10},
+                                },
+                                "bar": {"color": "#7B7FBF", "thickness": 0.3},
+                                "bgcolor": "#e0e0e8",
                                 "borderwidth": 0,
                                 "shape": "angular",
                                 "steps": [{"range": [0, 100], "color": "#e0e0e8"}],
+                                "threshold": {"line": {"color": "white", "width": 0},
+                                              "thickness": 0, "value": 0},
                             },
                         ))
                         fig_gauge.update_layout(
-                            height=220,
-                            margin=dict(t=40, b=0, l=30, r=30),
+                            height=200,
+                            margin=dict(t=30, b=10, l=20, r=20),
                             paper_bgcolor="white",
                         )
                         st.plotly_chart(fig_gauge, use_container_width=True)
@@ -1430,16 +1435,16 @@ elif nav_main == "🎯 Produto":
                         with _g1:
                             st.markdown(f"""
                             <div style="background:#6b6b6b;color:white;border-radius:8px;
-                                        padding:10px;text-align:center;">
-                              <div style="font-size:0.72rem;opacity:.85">Épicos Entregues</div>
-                              <div style="font-size:1.5rem;font-weight:700">{_ep_done_n}</div>
+                                        padding:8px 6px;text-align:center;margin-top:4px">
+                              <div style="font-size:0.68rem;opacity:.85;line-height:1.2">Épicos Entregues</div>
+                              <div style="font-size:1.4rem;font-weight:700">{_ep_done_n}</div>
                             </div>""", unsafe_allow_html=True)
                         with _g2:
                             st.markdown(f"""
                             <div style="background:#6b6b6b;color:white;border-radius:8px;
-                                        padding:10px;text-align:center;">
-                              <div style="font-size:0.72rem;opacity:.85">Total Épicos Criados</div>
-                              <div style="font-size:1.5rem;font-weight:700">{_ep_total_n}</div>
+                                        padding:8px 6px;text-align:center;margin-top:4px">
+                              <div style="font-size:0.68rem;opacity:.85;line-height:1.2">Total Épicos Criados</div>
+                              <div style="font-size:1.4rem;font-weight:700">{_ep_total_n}</div>
                             </div>""", unsafe_allow_html=True)
 
                     # ── Card 2: épicos por status ──────────────────────────
