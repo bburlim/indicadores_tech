@@ -234,6 +234,52 @@ def _first_active_date(issue: dict) -> Optional[datetime]:
     return earliest
 
 
+def _changelog_active_ms(issue: dict) -> Optional[float]:
+    """
+    Calcula o tempo (em ms) que a issue passou em status ativos a partir
+    do changelog.  Percorre as transições de status e acumula o intervalo
+    entre a entrada e a saída de cada status ativo.
+
+    Retorna None se não houver transições suficientes.
+    """
+    from dashboard import ACTIVE_STATUS_IDS
+    histories = issue.get("changelog", {}).get("histories", [])
+
+    # Coletar transições de status em ordem cronológica
+    transitions: list = []  # [(datetime, to_id)]
+    for history in histories:
+        for item in history.get("items", []):
+            if item.get("field") == "status":
+                dt = _parse_date(history.get("created", ""))
+                if dt:
+                    transitions.append((dt, item.get("to", "")))
+
+    if not transitions:
+        return None
+
+    transitions.sort(key=lambda t: t[0])
+
+    total_ms = 0.0
+    entered_active: Optional[datetime] = None
+
+    for dt, to_id in transitions:
+        if to_id in ACTIVE_STATUS_IDS:
+            if entered_active is None:
+                entered_active = dt
+        else:
+            if entered_active is not None:
+                total_ms += (dt - entered_active).total_seconds() * 1000
+                entered_active = None
+
+    # Se ainda estava em status ativo no último registro, fechar com done_date
+    if entered_active is not None:
+        done_dt = _done_transition_date(issue)
+        if done_dt:
+            total_ms += (done_dt - entered_active).total_seconds() * 1000
+
+    return total_ms if total_ms > 0 else None
+
+
 def _done_transition_date(issue: dict) -> Optional[datetime]:
     """
     Percorre o changelog da issue e retorna a data da última transição
@@ -331,6 +377,7 @@ def issues_to_dataframe(
             "due_date":           _parse_date(f.get("duedate")),
             "equipe":             equipe,
             "time_in_status":     str(tis_raw) if tis_raw else "",
+            "changelog_active_ms": _changelog_active_ms(issue),
             "categoria_trabalho": cat_trabalho,
             "categoria":          categoria,
             "labels":             ", ".join(f.get("labels", [])),
@@ -449,13 +496,17 @@ def load_from_jira(
     # Touch Time
     def touch_time_ms(row):
         tis = row.get("time_in_status_parsed", {})
-        if not tis:
-            return np.nan
-        if ACTIVE_STATUS_IDS:
-            return sum(ms for sid, ms in tis.items() if sid in ACTIVE_STATUS_IDS)
-        if DONE_STATUS_IDS:
-            return sum(ms for sid, ms in tis.items() if sid not in DONE_STATUS_IDS)
-        return sum(tis.values())
+        if tis:
+            if ACTIVE_STATUS_IDS:
+                return sum(ms for sid, ms in tis.items() if sid in ACTIVE_STATUS_IDS)
+            if DONE_STATUS_IDS:
+                return sum(ms for sid, ms in tis.items() if sid not in DONE_STATUS_IDS)
+            return sum(tis.values())
+        # Fallback: tempo em status ativos calculado via changelog
+        cl_ms = row.get("changelog_active_ms")
+        if pd.notna(cl_ms) and cl_ms:
+            return cl_ms
+        return np.nan
 
     df["touch_time_ms"]   = df.apply(touch_time_ms, axis=1)
     df["touch_time_dias"] = df["touch_time_ms"] / 86400000
