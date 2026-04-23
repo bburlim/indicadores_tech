@@ -131,7 +131,7 @@ def fetch_issues(
             "jql":        jql,
             "maxResults": page_size,
             "fields":     fields,
-            "expand":     ["changelog"],
+            "expand":     "changelog",
         }
         if next_page_token:
             payload["nextPageToken"] = next_page_token
@@ -247,15 +247,17 @@ def issues_to_dataframe(
         f = issue.get("fields", {})
 
         # Categoria do status (PT-BR para compatibilidade com load_csv)
-        cat_en = f.get("status", {}).get("statusCategory", {}).get("name", "")
+        cat_key = f.get("status", {}).get("statusCategory", {}).get("key", "")
+        cat_en  = f.get("status", {}).get("statusCategory", {}).get("name", "")
         status_cat = STATUS_CATEGORY_MAP.get(cat_en, cat_en)
 
         # resolutiondate pode ser null mesmo para itens Done quando o workflow
         # do Jira não está configurado para setar a data automaticamente.
         # Fallback: data exata da transição para Done extraída do changelog.
+        # Usa cat_key ("done") pois cat_en pode vir localizado ("Itens concluídos").
         resolvido_raw = f.get("resolutiondate", "") or ""
         resolvido_dt  = _parse_date(resolvido_raw)
-        if resolvido_dt is None and cat_en == "Done":
+        if resolvido_dt is None and cat_key == "done":
             resolvido_dt = _done_transition_date(issue)
 
         # Campos customizados via field_map

@@ -296,7 +296,7 @@ with st.sidebar:
                     _sem_res = _concluidos["resolvido_str"].isna() | (_concluidos["resolvido_str"] == "")
                     st.write(f"Concluídos totais: **{len(_concluidos)}**")
                     st.write(f"Com resolutiondate: **{(~_sem_res).sum()}**")
-                    st.write(f"Sem resolutiondate (usando updated): **{_sem_res.sum()}**")
+                    st.write(f"Sem resolutiondate (usando changelog): **{_sem_res.sum()}**")
                     st.write("Meses em `mes_resolvido`:", sorted(df_full["mes_resolvido"].dropna().unique().tolist()))
                 # with st.expander("🔍 Debug: campos descobertos"):
                 #     from jira_api import discover_fields
