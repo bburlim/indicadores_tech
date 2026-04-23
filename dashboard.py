@@ -317,11 +317,23 @@ def load_csv(path: str) -> pd.DataFrame:
     # não seta a data automaticamente. Fallback: usa "atualizado" como proxy.
     df["mes_criado"] = df["criado"].apply(lambda d: d.strftime("%Y-%m") if pd.notna(d) else None)
 
+    # Fallback para itens Concluídos sem resolutiondate:
+    # usa status_cat_changed (data em que a categoria mudou para Done no CSV).
+    # É mais preciso que "atualizado", pois não é afetado por comentários posteriores.
+    if "status_cat_changed" in df.columns:
+        df["status_cat_changed_dt"] = df["status_cat_changed"].apply(parse_jira_date)
+
     def _mes_resolvido(row):
         if pd.notna(row.get("resolvido")):
             return row["resolvido"].strftime("%Y-%m")
-        if row.get("concluido") and pd.notna(row.get("atualizado")):
-            return row["atualizado"].strftime("%Y-%m")
+        if row.get("concluido"):
+            fallback = row.get("status_cat_changed_dt")
+            if pd.notna(fallback):
+                return fallback.strftime("%Y-%m")
+            # último recurso: atualizado
+            atualizado = row.get("atualizado")
+            if pd.notna(atualizado):
+                return atualizado.strftime("%Y-%m")
         return None
 
     df["mes_resolvido"] = df.apply(_mes_resolvido, axis=1)

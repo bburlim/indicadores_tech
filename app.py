@@ -290,6 +290,14 @@ with st.sidebar:
             else:
                 fonte = "jira"
                 st.caption(f"📋 {len(df_full)} issues · Jira API")
+                with st.expander("🔍 Debug: cobertura de datas"):
+                    import pandas as _pd
+                    _concluidos = df_full[df_full["concluido"]]
+                    _sem_res = _concluidos["resolvido_str"].isna() | (_concluidos["resolvido_str"] == "")
+                    st.write(f"Concluídos totais: **{len(_concluidos)}**")
+                    st.write(f"Com resolutiondate: **{(~_sem_res).sum()}**")
+                    st.write(f"Sem resolutiondate (usando updated): **{_sem_res.sum()}**")
+                    st.write("Meses em `mes_resolvido`:", sorted(df_full["mes_resolvido"].dropna().unique().tolist()))
                 # with st.expander("🔍 Debug: campos descobertos"):
                 #     from jira_api import discover_fields
                 #     import requests as _req

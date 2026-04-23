@@ -118,7 +118,7 @@ def fetch_issues(
     auth = _auth(email, api_token)
 
     standard = [
-        "summary", "issuetype", "status", "created", "resolutiondate", "updated",
+        "summary", "issuetype", "status", "created", "resolutiondate",
         "priority", "assignee", "reporter", "labels", "parent", "duedate",
     ]
     fields = list(dict.fromkeys(standard + list(field_map.values())))
@@ -131,6 +131,7 @@ def fetch_issues(
             "jql":        jql,
             "maxResults": page_size,
             "fields":     fields,
+            "expand":     ["changelog"],
         }
         if next_page_token:
             payload["nextPageToken"] = next_page_token
@@ -210,6 +211,29 @@ def _extract_string(val) -> str:
 # CONVERSÃO PARA DATAFRAME
 # ─────────────────────────────────────────────
 
+# Nomes de status que representam entrega (Done) no projeto ERM
+_DONE_STATUS_NAMES = {"Concluído", "Released", "Done"}
+
+
+def _done_transition_date(issue: dict) -> Optional[datetime]:
+    """
+    Percorre o changelog da issue e retorna a data da última transição
+    para um status Done (Concluído / Released / Done).
+
+    Usar o changelog garante que a data de entrega não seja alterada por
+    eventos posteriores como comentários, edições ou mudanças de campo.
+    Retorna None se não houver histórico de transição Done.
+    """
+    histories = issue.get("changelog", {}).get("histories", [])
+    done_date: Optional[datetime] = None
+    for history in histories:
+        for item in history.get("items", []):
+            if item.get("field") == "status" and item.get("toString", "") in _DONE_STATUS_NAMES:
+                dt = _parse_date(history.get("created", ""))
+                if dt:
+                    done_date = dt  # mantém a mais recente caso haja reaberturas e re-fechamentos
+    return done_date
+
 def issues_to_dataframe(
     issues: List[Dict],
     field_map: Dict[str, str],
@@ -228,11 +252,11 @@ def issues_to_dataframe(
 
         # resolutiondate pode ser null mesmo para itens Done quando o workflow
         # do Jira não está configurado para setar a data automaticamente.
-        # Fallback: usa o campo "updated" como data de resolução aproximada.
+        # Fallback: data exata da transição para Done extraída do changelog.
         resolvido_raw = f.get("resolutiondate", "") or ""
         resolvido_dt  = _parse_date(resolvido_raw)
         if resolvido_dt is None and cat_en == "Done":
-            resolvido_dt = _parse_date(f.get("updated", ""))
+            resolvido_dt = _done_transition_date(issue)
 
         # Campos customizados via field_map
         tis_raw       = f.get(field_map.get("time_in_status", ""), "") or ""
