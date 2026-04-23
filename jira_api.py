@@ -215,6 +215,25 @@ def _extract_string(val) -> str:
 _DONE_STATUS_NAMES = {"Concluído", "Released", "Done"}
 
 
+def _first_active_date(issue: dict) -> Optional[datetime]:
+    """
+    Percorre o changelog e retorna a data da PRIMEIRA transição de status
+    que indica início de trabalho (saída de 'To Do' / 'Backlog').
+    Histories vêm em ordem cronológica reversa, então guardamos a mais antiga.
+    Serve como fallback para actual_start quando o campo está vazio.
+    """
+    _NEW_STATUS_IDS = {"10039"}  # Tarefas pendentes (status inicial do projeto ERM)
+    histories = issue.get("changelog", {}).get("histories", [])
+    earliest: Optional[datetime] = None
+    for history in histories:
+        for item in history.get("items", []):
+            if item.get("field") == "status" and item.get("from", "") in _NEW_STATUS_IDS:
+                dt = _parse_date(history.get("created", ""))
+                if dt:
+                    earliest = dt  # como é reverso, sobrescreve até achar a mais antiga
+    return earliest
+
+
 def _done_transition_date(issue: dict) -> Optional[datetime]:
     """
     Percorre o changelog da issue e retorna a data da última transição
@@ -263,6 +282,8 @@ def issues_to_dataframe(
         # Campos customizados via field_map
         tis_raw       = f.get(field_map.get("time_in_status", ""), "") or ""
         actual_start  = _parse_date(f.get(field_map.get("actual_start", ""), ""))
+        if actual_start is None:
+            actual_start = _first_active_date(issue)
         actual_end    = _parse_date(f.get(field_map.get("actual_end", ""), ""))
         equipe        = _extract_team(f.get(field_map.get("team_name", ""), ""))
         cat_trabalho  = _extract_string(f.get(field_map.get("categoria_trabalho", ""), ""))
