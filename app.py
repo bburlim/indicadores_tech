@@ -235,7 +235,7 @@ def pivot_table(pivot: pd.DataFrame, meses: list[str]):
 # ─────────────────────────────────────────────
 
 import os
-# import tempfile
+import tempfile
 # from sharepoint import secrets_configured, get_secrets, load_from_sharepoint
 from jira_api import (
     jira_secrets_configured, get_jira_secrets, load_from_jira, test_connection, debug_jql,
@@ -328,37 +328,23 @@ with st.sidebar:
             st.error(f"Erro na API do Jira:\n{e}")
             df_full = None
 
-    # 2. SharePoint (fallback via CSV) — desativado temporariamente
-    # if df_full is None and sp_ok:
-    #     try:
-    #         sp = get_secrets()
-    #         csv_bytes = load_from_sharepoint(**sp)
-    #         with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-    #             tmp.write(csv_bytes.read())
-    #             tmp_path = tmp.name
-    #         df_full = load_csv(tmp_path)
-    #         os.unlink(tmp_path)
-    #         fonte = "sharepoint"
-    #     except Exception as e:
-    #         st.error(f"Erro ao acessar SharePoint:\n{e}")
-
-    # 3. Upload manual de CSV — desativado temporariamente
-    # st.divider()
-    # uploaded = st.file_uploader("📂 Upload manual do CSV", type="csv")
-    # if uploaded:
-    #     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-    #         tmp.write(uploaded.read())
-    #         tmp_path = tmp.name
-    #     df_full = load_csv(tmp_path)
-    #     os.unlink(tmp_path)
-    #     fonte = "upload"
-
-    # 4. CSV local (desenvolvimento) — desativado temporariamente
-    # if df_full is None:
-    #     default_csv = os.path.join(os.path.dirname(__file__), "data", "jira.csv")
-    #     if os.path.exists(default_csv):
-    #         df_full = load_csv(default_csv)
-    #         fonte = "local"
+    # 2. Upload manual de CSV (alternativa explícita — não é fallback automático)
+    with st.expander("📂 Importar CSV manualmente"):
+        st.caption("Use apenas quando a API do Jira não estiver disponível. Exporte o CSV diretamente do Jira.")
+        uploaded = st.file_uploader("Selecione o arquivo CSV exportado do Jira", type="csv", key="csv_upload")
+        if uploaded and df_full is None:
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+                    tmp.write(uploaded.read())
+                    tmp_path = tmp.name
+                df_full = load_csv(tmp_path)
+                os.unlink(tmp_path)
+                fonte = "csv_manual"
+                st.success(f"CSV carregado: {len(df_full)} issues")
+            except Exception as e:
+                st.error(f"Erro ao processar CSV:\n{e}")
+        elif uploaded and df_full is not None:
+            st.info("API do Jira já está ativa. O CSV não será usado.")
 
     if not jira_ok:
         st.info("Configure as credenciais do Jira nas secrets para carregar os dados.")

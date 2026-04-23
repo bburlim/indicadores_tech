@@ -154,7 +154,7 @@ def load_csv(path: str) -> pd.DataFrame:
         "Prioridade": "prioridade",
         "Criado": "criado_str",
         "Resolvido": "resolvido_str",
-        "Atualizado(a)": "atualizado_str",
+        "Atualizado(a)":  "atualizado_str",
         "Categoria do status": "status_cat",
         "Categoria do status alterada": "status_cat_changed",
         "Team Name": "equipe",
@@ -171,7 +171,8 @@ def load_csv(path: str) -> pd.DataFrame:
 
     # Parse datas
     for col_str, col_dt in [("criado_str", "criado"), ("resolvido_str", "resolvido"),
-                              ("actual_start_str", "actual_start"), ("actual_end_str", "actual_end")]:
+                              ("actual_start_str", "actual_start"), ("actual_end_str", "actual_end"),
+                              ("atualizado_str", "atualizado")]:
         if col_str in df.columns:
             df[col_dt] = df[col_str].apply(parse_jira_date)
 
@@ -312,8 +313,18 @@ def load_csv(path: str) -> pd.DataFrame:
     df["origem"] = df.apply(origem_defeito, axis=1)
 
     # Mês de criação e de resolução
+    # resolutiondate pode ser null mesmo para itens Done quando o workflow do Jira
+    # não seta a data automaticamente. Fallback: usa "atualizado" como proxy.
     df["mes_criado"] = df["criado"].apply(lambda d: d.strftime("%Y-%m") if pd.notna(d) else None)
-    df["mes_resolvido"] = df["resolvido"].apply(lambda d: d.strftime("%Y-%m") if pd.notna(d) else None)
+
+    def _mes_resolvido(row):
+        if pd.notna(row.get("resolvido")):
+            return row["resolvido"].strftime("%Y-%m")
+        if row.get("concluido") and pd.notna(row.get("atualizado")):
+            return row["atualizado"].strftime("%Y-%m")
+        return None
+
+    df["mes_resolvido"] = df.apply(_mes_resolvido, axis=1)
 
     return df
 

@@ -118,7 +118,7 @@ def fetch_issues(
     auth = _auth(email, api_token)
 
     standard = [
-        "summary", "issuetype", "status", "created", "resolutiondate",
+        "summary", "issuetype", "status", "created", "resolutiondate", "updated",
         "priority", "assignee", "reporter", "labels", "parent", "duedate",
     ]
     fields = list(dict.fromkeys(standard + list(field_map.values())))
@@ -226,6 +226,14 @@ def issues_to_dataframe(
         cat_en = f.get("status", {}).get("statusCategory", {}).get("name", "")
         status_cat = STATUS_CATEGORY_MAP.get(cat_en, cat_en)
 
+        # resolutiondate pode ser null mesmo para itens Done quando o workflow
+        # do Jira não está configurado para setar a data automaticamente.
+        # Fallback: usa o campo "updated" como data de resolução aproximada.
+        resolvido_raw = f.get("resolutiondate", "") or ""
+        resolvido_dt  = _parse_date(resolvido_raw)
+        if resolvido_dt is None and cat_en == "Done":
+            resolvido_dt = _parse_date(f.get("updated", ""))
+
         # Campos customizados via field_map
         tis_raw       = f.get(field_map.get("time_in_status", ""), "") or ""
         actual_start  = _parse_date(f.get(field_map.get("actual_start", ""), ""))
@@ -266,11 +274,11 @@ def issues_to_dataframe(
             "status_cat_changed": "",
             "prioridade":         (f.get("priority") or {}).get("name", ""),
             "criado_str":         f.get("created", ""),
-            "resolvido_str":      f.get("resolutiondate", "") or "",
+            "resolvido_str":      resolvido_raw,
             "actual_start_str":   "",
             "actual_end_str":     "",
             "criado":             _parse_date(f.get("created")),
-            "resolvido":          _parse_date(f.get("resolutiondate")),
+            "resolvido":          resolvido_dt,
             "actual_start":       actual_start,
             "actual_end":         actual_end,
             "due_date":           _parse_date(f.get("duedate")),

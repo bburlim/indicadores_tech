@@ -5,3 +5,4 @@ __pycache__/
 dashboard.html
 .streamlit/secrets.toml
 test_sharepoint.py
+.mcp.json
